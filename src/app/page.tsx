@@ -400,7 +400,7 @@ export default function LandingPage() {
                 <span className="h-3 w-3 rounded-full bg-yellow-500"></span>
                 <span className="h-3 w-3 rounded-full bg-green-500"></span>
               </div>
-              <span className="text-xs font-semibold text-muted-foreground font-mono">ZConnect Agent Hub</span>
+              <span className="text-xs font-semibold text-muted-foreground font-mono">ZConnect Support Portal</span>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="p-4 bg-muted/50 rounded-xl space-y-1">

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Rounded dark background -->
+  <rect width="200" height="200" rx="40" fill="#050510" />
+  <!-- Connection tracks forming Z -->
+  <path d="M45 45 L155 45 L45 155 L155 155" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+  <!-- Gold and Accent connection nodes -->
+  <circle cx="45" cy="45" r="25" fill="#D4A017" />
+  <circle cx="155" cy="155" r="25" fill="#9333ea" />
+  <circle cx="155" cy="45" r="18" fill="#9333ea" opacity="0.8" />
+  <circle cx="45" cy="155" r="18" fill="#D4A017" opacity="0.8" />
+  <!-- Highlights -->
+  <path d="M45 45 L155 45 L100 100" stroke="#D4A017" stroke-width="6" stroke-linecap="round" />
+  <path d="M100 100 L45 155 L155 155" stroke="#9333ea" stroke-width="6" stroke-linecap="round" />
+</svg>

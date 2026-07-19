@@ -1,5 +1,11 @@
 # VERSION HISTORY
 
+## [0.2.3] - 2026-07-19
+- Added custom brand-aligned SVG favicon (`icon.svg`) matching Navy/Gold colors.
+- Removed legacy Next.js `favicon.ico` to prevent runtime favicon conflicts.
+- Migrated layout metadata `viewport` config to separate viewport constant, resolving Next.js build console warnings.
+- Renamed the mock browser hero preview header from "ZConnect Agent Hub" to "ZConnect Support Portal".
+
 ## [0.2.2] - 2026-07-19
 - Removed "3. Live Support Sandbox" as a standalone feature card.
 - Added "Preview Widget" button to Card 1 and "Preview Console" button to Card 2.

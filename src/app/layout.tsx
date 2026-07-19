@@ -12,7 +12,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "ZConnect Portal — Enterprise Support Platform",
   description: "Enterprise customer live chat support and ticketing platform powered by ZConnect.",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
