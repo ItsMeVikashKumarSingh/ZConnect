@@ -1,5 +1,13 @@
 # VERSION HISTORY
 
+## [0.2.2] - 2026-07-19
+- Removed "3. Live Support Sandbox" as a standalone feature card.
+- Added "Preview Widget" button to Card 1 and "Preview Console" button to Card 2.
+- Clicking a card button expands its specific inline preview below the cards (User Widget or Agent Console, not both).
+- Card gets a colored ring highlight when its preview is active.
+- Reset and close controls available in the inline preview header.
+- Full-screen modal overlay removed; simulator is now context-aware and inline.
+
 ## [0.2.1] - 2026-07-19
 - Removed "Support Sandbox Simulation" hero badge from landing page.
 - Removed full-screen modal overlay for the Live Support Sandbox simulator.
