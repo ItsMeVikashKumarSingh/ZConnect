@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
@@ -70,9 +70,8 @@ export default function LandingPage() {
     { name: 'Rose', value: 'rose' }
   ];
 
-  // Inline simulator panel: 'widget' | 'agent' | null
-  const [simulatorView, setSimulatorView] = useState<'widget' | 'agent' | null>(null);
-  const showSimulator = simulatorView !== null;
+  // Simulator Visibility Toggle
+  const [showSimulator, setShowSimulator] = useState(false);
 
   // ----------------------------------------------------
   // REAL-TIME TICKETING SIMULATOR STATE
@@ -344,7 +343,7 @@ export default function LandingPage() {
           <ZConnectLogo showText size={36} />
           
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-muted-foreground">
-            <button onClick={() => setShowSimulator(true)} className="hover:text-foreground transition-colors font-semibold bg-transparent border-none cursor-pointer">Live Simulator</button>
+            <button onClick={() => { setShowSimulator(true); setTimeout(() => { document.getElementById('chat-capabilities')?.scrollIntoView({ behavior: 'smooth' }); }, 100); }} className="hover:text-foreground transition-colors font-semibold bg-transparent border-none cursor-pointer font-sans">Live Simulator</button>
             <a href="#features" className="hover:text-foreground transition-colors">Platform Features</a>
             <a href="#playground" className="hover:text-foreground transition-colors">Personalization</a>
             <a href="#security" className="hover:text-foreground transition-colors">Enterprise Security</a>
@@ -452,7 +451,7 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Card 1: Customer Chat Widget */}
-          <div className={`premium-card bg-card p-8 space-y-6 flex flex-col justify-between transition-all ${simulatorView === 'widget' ? 'ring-2 ring-primary-accent/50' : ''}`}>
+          <div className={`premium-card bg-card p-8 space-y-6 flex flex-col justify-between transition-all ${showSimulator ? 'ring-1 ring-primary-accent/30 bg-primary-accent/[0.01]' : ''}`}>
             <div className="space-y-4">
               <div className="h-12 w-12 rounded-xl bg-primary-accent/10 text-primary-accent flex items-center justify-center">
                 <MessageSquare className="h-6 w-6" />
@@ -467,20 +466,20 @@ export default function LandingPage() {
               </ul>
             </div>
             <button
-              onClick={() => setSimulatorView(v => v === 'widget' ? null : 'widget')}
+              onClick={() => setShowSimulator(!showSimulator)}
               className={`text-xs font-bold font-mono uppercase tracking-wider py-2.5 rounded-lg transition-all w-full flex items-center justify-center gap-2 cursor-pointer border ${
-                simulatorView === 'widget'
+                showSimulator
                   ? 'bg-primary-accent text-primary-accent-foreground border-primary-accent'
                   : 'bg-card text-muted-foreground border-border hover:border-primary-accent/50 hover:text-foreground'
               }`}
             >
               <Play className="h-3.5 w-3.5" />
-              {simulatorView === 'widget' ? 'Hide Preview' : 'Preview Widget'}
+              {showSimulator ? 'Close Sandbox' : 'Launch Sandbox Simulator'}
             </button>
           </div>
 
           {/* Card 2: Agent Console Workspace */}
-          <div className={`premium-card bg-card p-8 space-y-6 flex flex-col justify-between transition-all ${simulatorView === 'agent' ? 'ring-2 ring-gold-accent/50' : ''}`}>
+          <div className={`premium-card bg-card p-8 space-y-6 flex flex-col justify-between transition-all ${showSimulator ? 'ring-1 ring-gold-accent/30 bg-gold-accent/[0.01]' : ''}`}>
             <div className="space-y-4">
               <div className="h-12 w-12 rounded-xl bg-gold-accent/10 text-gold-accent flex items-center justify-center">
                 <Users className="h-6 w-6" />
@@ -495,32 +494,32 @@ export default function LandingPage() {
               </ul>
             </div>
             <button
-              onClick={() => setSimulatorView(v => v === 'agent' ? null : 'agent')}
+              onClick={() => setShowSimulator(!showSimulator)}
               className={`text-xs font-bold font-mono uppercase tracking-wider py-2.5 rounded-lg transition-all w-full flex items-center justify-center gap-2 cursor-pointer border ${
-                simulatorView === 'agent'
+                showSimulator
                   ? 'bg-gold-accent text-white border-gold-accent'
                   : 'bg-card text-muted-foreground border-border hover:border-gold-accent/50 hover:text-foreground'
               }`}
             >
               <Play className="h-3.5 w-3.5" />
-              {simulatorView === 'agent' ? 'Hide Preview' : 'Preview Console'}
+              {showSimulator ? 'Close Sandbox' : 'Launch Inbox Simulator'}
             </button>
           </div>
         </div>
 
-        {/* Inline Simulator Panel */}
-        {simulatorView && (
-          <div className="max-w-4xl mx-auto w-full border border-border rounded-2xl overflow-hidden shadow-2xl bg-card mt-4">
+        {/* Inline Simulator Panel (Side-by-Side) */}
+        {showSimulator && (
+          <div className="max-w-6xl mx-auto w-full border border-border rounded-2xl overflow-hidden shadow-2xl bg-card mt-6">
             {/* Panel header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/40">
               <div className="flex items-center gap-3">
                 <ZConnectLogo size={24} />
                 <div>
                   <h3 className="text-sm font-bold text-foreground">
-                    {simulatorView === 'widget' ? 'User Widget Preview' : 'Agent Console Preview'}
+                    Live Support Ticketing Simulator Sandbox
                   </h3>
                   <p className="text-[10px] text-muted-foreground font-mono">
-                    {simulatorView === 'widget' ? 'Live interactive widget simulation' : 'Live inbox & ticket console simulation'}
+                    Real-time side-by-side customer-to-operator workspace simulation
                   </p>
                 </div>
               </div>
@@ -529,10 +528,10 @@ export default function LandingPage() {
                   onClick={handleResetSimulator}
                   className="text-xs border border-border bg-card hover:bg-muted text-foreground font-mono font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                 >
-                  Reset
+                  Reset Sandbox
                 </button>
                 <button
-                  onClick={() => setSimulatorView(null)}
+                  onClick={() => setShowSimulator(false)}
                   className="h-8 w-8 rounded-lg border border-border bg-card hover:bg-muted text-foreground flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <X className="h-4 w-4" />
@@ -540,14 +539,16 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Widget Panel */}
-            {simulatorView === 'widget' && (
-              <div className="p-6">
-                <div className="flex justify-between items-center px-1 mb-3">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono tracking-wider">User Widget Screen</span>
+            {/* Side-by-Side Sandbox Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 p-6">
+              
+              {/* USER WIDGET PANEL (4 COLS) */}
+              <div className="lg:col-span-4 space-y-2">
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono tracking-wider">1. User Widget Screen</span>
                   <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
                 </div>
-                <div className="w-full max-w-sm mx-auto h-[520px] bg-background border border-border rounded-xl shadow-xl flex flex-col overflow-hidden">
+                <div className="w-full h-[520px] bg-background border border-border rounded-xl shadow-xl flex flex-col overflow-hidden">
                   <div className="p-4 bg-primary-accent text-primary-accent-foreground flex items-center gap-2 shrink-0">
                     {widgetMode !== 'faq' && !userCreatedTicketId && (
                       <button onClick={() => setWidgetMode('faq')} className="hover:opacity-85 text-white p-1"><ArrowLeft className="h-4 w-4" /></button>
@@ -633,14 +634,12 @@ export default function LandingPage() {
                   )}
                 </div>
               </div>
-            )}
 
-            {/* Agent Panel */}
-            {simulatorView === 'agent' && (
-              <div className="p-6">
-                <div className="flex justify-between items-center px-1 mb-3">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono tracking-wider">Operator Dashboard</span>
-                  <span className="text-[10px] text-primary-accent font-bold">Inbox Console View</span>
+              {/* OPERATOR DASHBOARD PANEL (8 COLS) */}
+              <div className="lg:col-span-8 space-y-2">
+                <div className="flex justify-between items-center px-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono tracking-wider">2. Operator Inbox Dashboard</span>
+                  <span className="text-[10px] text-primary-accent font-bold">ZConnect Console Preview</span>
                 </div>
                 <div className="w-full h-[520px] bg-card border border-border rounded-xl shadow-xl flex flex-col overflow-hidden">
                   <div className="bg-muted px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0">
@@ -731,7 +730,8 @@ export default function LandingPage() {
                   </div>
                 </div>
               </div>
-            )}
+
+            </div>
           </div>
         )}
       </section>
