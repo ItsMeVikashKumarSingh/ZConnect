@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+:root {
+  --radius: 12px;
+  --background: #f8fafc;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  
+  --muted: #f1f5f9;
+  --muted-foreground: #6b7280;
+  
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: var(--primary-accent);
+  
+  /* Accent variable defaults (will be updated dynamically by ThemeProvider) */
+  --primary-accent: #0d2b5c;
+  --primary-accent-hover: #091e43;
+  --primary-accent-foreground: #ffffff;
+  
+  --gold-accent: #d4a017;
+  --gold-accent-hover: #b8860b;
+}
+
+.dark {
+  --background: #050510; /* Deep Obsidian base background */
+  --foreground: #f9fafb;
+  --card: #0c1222; /* Solid Obsidian Card surface */
+  --card-foreground: #f9fafb;
+  --popover: #0c1222;
+  --popover-foreground: #f9fafb;
+  
+  --muted: #1f2937;
+  --muted-foreground: #9ca3af;
+  
+  --secondary: #1f2937;
+  --secondary-foreground: #f9fafb;
+  
+  --border: #1f2937;
+  --input: #1f2937;
+  --ring: var(--primary-accent);
+  
+  --gold-accent: #d4a017;
+  --gold-accent-hover: #b8860b;
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--color-popover-foreground);
+  
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+  
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  
+  --color-primary-accent: var(--primary-accent);
+  --color-primary-accent-hover: var(--primary-accent-hover);
+  --color-primary-accent-foreground: var(--primary-accent-foreground);
+  
+  --color-gold-accent: var(--gold-accent);
+  --color-gold-accent-hover: var(--gold-accent-hover);
+  
+  --radius-xl: 12px;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* Premium custom card class with soft shadows, large spacing, minimal borders */
+.premium-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -4px rgba(0, 0, 0, 0.07);
+}
+
+/* Glassmorphism accent panels */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dark .glass-panel {
+  background: rgba(13, 22, 45, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Custom Scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-accent);
+}
+
+/* Launcher Pulse Animation */
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--primary-accent), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(var(--primary-accent), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--primary-accent), 0);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s infinite;
+}
+
+/* Focus styles for keyboard navigation */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--primary-accent);
+  outline-offset: 2px;
+}
