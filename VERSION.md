@@ -1,5 +1,9 @@
 # VERSION HISTORY
 
+## [0.4.4] - 2026-07-26
+- **OR-Matched Profile Querying**: Refactored `/api/auth/login` to query `tbl_users` and `tbl_clients` using single-pass PostgREST `.or(...)` queries (`tu_auth_user_id.eq / tu_email.ilike` and `tc_auth_user_id.eq / tc_contact_email.ilike`) with in-memory active record filtering (`.find(row => !row.deleted_flag)`).
+- **Environment & DB Cleanliness**: Removed all temporary diagnostic test scripts and enforced strict Rule 2.3 secret compliance in `src/lib/supabase.ts`.
+
 ## [0.4.3] - 2026-07-26
 - **Explicit Schema Qualification**: Added explicit `.schema('management')` builder methods to all Supabase database queries in `/api/auth/login` (`tbl_users`, `tbl_clients`, and `tbl_chat_projects`) to eliminate `public` schema fallback errors (`PGRST205`) in Vercel production environments.
 
