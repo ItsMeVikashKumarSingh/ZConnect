@@ -1,5 +1,8 @@
 # VERSION HISTORY
 
+## [0.5.1] - 2026-07-26
+- **Date Format Standardization**: Standardized thread last-updated timestamps to dd/mm/yyyy ('en-GB') in dashboard view.
+
 ## [0.5.0] - 2026-07-26
 - **Auto-Authenticate Website Authorization**: Created `/api/widget/authorize` to auto-verify site domain origins against `tp_domain` and issue pre-signed SSO identity signatures and one-click auto-auth scripts.
 - **Integrations Hub Overhaul**: Rebuilt `/dashboard/integrations` with platform connector cards for Slack, Discord, MS Teams, Telegram, and Custom Webhooks.

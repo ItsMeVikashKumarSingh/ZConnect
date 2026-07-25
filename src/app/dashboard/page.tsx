@@ -623,7 +623,7 @@ function DashboardContent() {
                     <span className="capitalize">{conv.tc_category}</span>
                     <span className="flex items-center gap-1">
                       <Clock className="h-2.5 w-2.5" />
-                      {new Date(conv.tc_updated_at).toLocaleDateString()}
+                      {new Date(conv.tc_updated_at).toLocaleDateString('en-GB')}
                     </span>
                   </div>
                 </button>
