@@ -34,26 +34,39 @@ export async function POST(req: NextRequest) {
     const userId = authData.user.id;
     const userEmail = (authData.user.email || cleanEmail).trim().toLowerCase();
 
-    // 2. Step A: Check tbl_users (Internal Zorvik Tech Team & Staff)
-    let { data: dbUser } = await supabase
+    // 2. Step A: Check management.tbl_users (Internal Zorvik Tech Team & Staff)
+    const { data: initialDbUser, error: dbUserError } = await supabase
+      .schema('management')
       .from('tbl_users')
       .select('tu_id, tu_auth_user_id, tu_role, tu_permissions, tu_status_flag, tu_deleted_flag')
       .eq('tu_deleted_flag', false)
       .eq('tu_auth_user_id', userId)
       .maybeSingle();
 
+    let dbUser = initialDbUser;
+
+    if (dbUserError) {
+      console.warn('[Login DB Warning - tbl_users UUID query]:', dbUserError.message);
+    }
+
     if (!dbUser) {
-      const { data: userByEmail } = await supabase
+      const { data: userByEmail, error: userEmailErr } = await supabase
+        .schema('management')
         .from('tbl_users')
         .select('tu_id, tu_auth_user_id, tu_role, tu_permissions, tu_status_flag, tu_deleted_flag')
         .eq('tu_deleted_flag', false)
         .ilike('tu_email', userEmail)
         .maybeSingle();
 
+      if (userEmailErr) {
+        console.warn('[Login DB Warning - tbl_users Email query]:', userEmailErr.message);
+      }
+
       if (userByEmail) {
         dbUser = userByEmail;
         if (!userByEmail.tu_auth_user_id || userByEmail.tu_auth_user_id !== userId) {
           await supabase
+            .schema('management')
             .from('tbl_users')
             .update({ tu_auth_user_id: userId, tu_updated_at: new Date().toISOString() })
             .eq('tu_id', userByEmail.tu_id);
@@ -89,26 +102,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Step B: Check tbl_clients (Super Admin & Tenant Clients)
-    let { data: client } = await supabase
+    // 3. Step B: Check management.tbl_clients (Super Admin & Tenant Clients)
+    const { data: initialClient, error: clientUuidErr } = await supabase
+      .schema('management')
       .from('tbl_clients')
       .select('tc_id, tc_client_name, tc_auth_user_id, tc_role, tc_status_flag, tc_deleted_flag')
       .eq('tc_deleted_flag', false)
       .eq('tc_auth_user_id', userId)
       .maybeSingle();
 
+    let client = initialClient;
+
+    if (clientUuidErr) {
+      console.warn('[Login DB Warning - tbl_clients UUID query]:', clientUuidErr.message);
+    }
+
     if (!client) {
-      const { data: clientByEmail } = await supabase
+      const { data: clientByEmail, error: clientEmailErr } = await supabase
+        .schema('management')
         .from('tbl_clients')
         .select('tc_id, tc_client_name, tc_auth_user_id, tc_role, tc_status_flag, tc_deleted_flag')
         .eq('tc_deleted_flag', false)
         .ilike('tc_contact_email', userEmail)
         .maybeSingle();
 
+      if (clientEmailErr) {
+        console.warn('[Login DB Warning - tbl_clients Email query]:', clientEmailErr.message);
+      }
+
       if (clientByEmail) {
         client = clientByEmail;
         if (!clientByEmail.tc_auth_user_id || clientByEmail.tc_auth_user_id !== userId) {
           await supabase
+            .schema('management')
             .from('tbl_clients')
             .update({ tc_auth_user_id: userId, tc_updated_at: new Date().toISOString() })
             .eq('tc_id', clientByEmail.tc_id);
@@ -141,13 +167,18 @@ export async function POST(req: NextRequest) {
       }
 
       // Regular Client: Fetch active chat project
-      const { data: project } = await supabase
+      const { data: project, error: projErr } = await supabase
+        .schema('management')
         .from('tbl_chat_projects')
         .select('tp_id, tp_api_key')
         .eq('tp_client_id', client.tc_id)
         .eq('tp_status_flag', true)
         .eq('tp_deleted_flag', false)
         .maybeSingle();
+
+      if (projErr) {
+        console.warn('[Login DB Warning - tbl_chat_projects query]:', projErr.message);
+      }
 
       if (!project) {
         return NextResponse.json(
@@ -177,6 +208,7 @@ export async function POST(req: NextRequest) {
     // 4. Step C: Fallback check for user in tbl_users assigned to any active project directly
     if (dbUser) {
       const { data: userProject } = await supabase
+        .schema('management')
         .from('tbl_chat_projects')
         .select('tp_id, tp_api_key')
         .eq('tp_status_flag', true)

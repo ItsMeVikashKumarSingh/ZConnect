@@ -1,5 +1,8 @@
 # VERSION HISTORY
 
+## [0.4.3] - 2026-07-26
+- **Explicit Schema Qualification**: Added explicit `.schema('management')` builder methods to all Supabase database queries in `/api/auth/login` (`tbl_users`, `tbl_clients`, and `tbl_chat_projects`) to eliminate `public` schema fallback errors (`PGRST205`) in Vercel production environments.
+
 ## [0.4.2] - 2026-07-26
 - **Enhanced Operator Project Resolution**: Added secondary fallback check in `/api/auth/login` for non-admin users in `tbl_users` to resolve active projects in `tbl_chat_projects`.
 - **Diagnostic Logging**: Added structured server error logging for authentication fallthroughs (`[Login Auth Profile Resolution Failed]`).
