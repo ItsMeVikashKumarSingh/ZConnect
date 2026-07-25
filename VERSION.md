@@ -1,5 +1,11 @@
 # VERSION HISTORY
 
+## [0.4.1] - 2026-07-25
+- **Multi-Role Profile Login Resolution**: Updated `/api/auth/login` to query both `tbl_users` (internal staff & admins) and `tbl_clients` (Super Admin & client accounts) using dual UUID (`tu_auth_user_id` / `tc_auth_user_id`) and Email (`tu_email` / `tc_contact_email`) matching.
+- **Self-Healing Auth Backfill**: Automatically backfills missing `tu_auth_user_id` or `tc_auth_user_id` on successful authentication so subsequent logins hit primary indexes directly.
+- **Status & Suspension Enforcement**: Validates `tu_status_flag` and `tc_status_flag` before issuing JWTs to prevent disabled or suspended accounts from authenticating.
+- **Rate Limiting**: Added login attempt rate limiting (20 attempts/min per IP).
+
 ## [0.4.0] - 2026-07-25
 - **Ticket History Drawer**: Logged-in users can now switch between all their past tickets via a "Tickets (N)" dropdown in the widget header.
 - **Real-time Ticket Status Sync**: Widget receives live `conversation_update` SSE events when an operator resolves or closes a ticket. Status bar and animated status badge update instantly.
