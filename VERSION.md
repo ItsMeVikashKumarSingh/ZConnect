@@ -1,5 +1,11 @@
 # VERSION HISTORY
 
+## [0.5.0] - 2026-07-26
+- **Auto-Authenticate Website Authorization**: Created `/api/widget/authorize` to auto-verify site domain origins against `tp_domain` and issue pre-signed SSO identity signatures and one-click auto-auth scripts.
+- **Integrations Hub Overhaul**: Rebuilt `/dashboard/integrations` with platform connector cards for Slack, Discord, MS Teams, Telegram, and Custom Webhooks.
+- **Live Test Dispatcher ("⚡ Send Test Payload")**: Added real-time webhook payload testing in `/api/integrations` returning status badges (e.g. `200 OK · 128ms`).
+- **Interactive Code Generator**: Added one-click copy embed generators for Auto-SSO Script Tags, HTML iFrames, and React/Next.js hooks.
+
 ## [0.4.5] - 2026-07-26
 - **RLS State Mutation Isolation**: Fixed critical auth bug where `supabase.auth.signInWithPassword` mutated the singleton client's `Authorization: Bearer` header to the user's JWT token, causing subsequent queries on `management.tbl_clients` to be blocked by RLS policies.
 - **Dedicated Admin Client**: Added `createAdminClient()` in `src/lib/supabase.ts` and refactored `/api/auth/login` to perform all profile & project lookups using an isolated admin client context.
