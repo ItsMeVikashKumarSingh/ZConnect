@@ -1,5 +1,17 @@
 # VERSION HISTORY
 
+## [0.4.0] - 2026-07-25
+- **Ticket History Drawer**: Logged-in users can now switch between all their past tickets via a "Tickets (N)" dropdown in the widget header.
+- **Real-time Ticket Status Sync**: Widget receives live `conversation_update` SSE events when an operator resolves or closes a ticket. Status bar and animated status badge update instantly.
+- **Resolved Ticket Banner**: When a ticket is resolved or closed, a full-width green banner appears with a one-click "New Ticket" shortcut.
+- **Fast-Track New Ticket**: Verified authenticated users can open a fresh ticket directly without re-entering name/email.
+- **Session Persistence**: Active ticket selection saved to `localStorage` (`zconnect_session_{projectId}`) for seamless page reload continuation.
+- **Multi-ticket API**: `/api/widget` GET now returns `userConversations[]` (full history) and new `/api/widget/messages` endpoint serves message history for any ticket the user owns.
+- **SSE Typed Events**: Widget realtime route now emits typed events (`{ type: "message" }` / `{ type: "conversation_update" }`) for discriminated handling in the client.
+- **Operator SSE Token Fix**: `/api/dashboard/realtime` now verifies operator JWT against the project's own `tp_api_key` instead of the global `JWT_SECRET`, restoring real-time dashboard streams.
+- **Rate Limiting**: Added `checkRateLimit` helper (`src/lib/rate-limit.ts`) applied to `/api/widget` GET (120 req/min) and `/api/widget/messages` (60 req/min).
+- **Security**: Added explicit warning log when `INTEGRATION_ENCRYPTION_KEY` env var is missing.
+
 ## [0.3.1] - 2026-07-25
 - Fixed mobile responsive layout viewport expansion issue by adding `overflow-x-hidden` and `w-full max-w-full` constraints to the page wrapper and root layout.
 - Constrained ambient blur glow elements to prevent horizontal viewport scrolling and half-screen shrinking on mobile screens.

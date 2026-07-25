@@ -4,6 +4,8 @@ import { getDownloadPresignedUrl } from '@/lib/b2';
 import { triggerIntegrations } from '@/lib/integrations';
 import crypto from 'crypto';
 
+import { checkRateLimit } from '@/lib/rate-limit';
+
 // Verify identity signature helper (supports anonymous bypass for public widgets)
 function verifySignature(apiKey: string, userId: string, email: string, signature: string): boolean {
   if (userId.startsWith('anon:') && signature === 'anonymous') {
@@ -19,6 +21,11 @@ function verifySignature(apiKey: string, userId: string, email: string, signatur
 
 export async function GET(req: NextRequest) {
   try {
+    const rateLimit = checkRateLimit(req, 120, 60000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ success: false, error: 'Too many requests. Please try again later.' }, { status: 429 });
+    }
+
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get('projectId');
     const userId = searchParams.get('userId');
@@ -53,30 +60,31 @@ export async function GET(req: NextRequest) {
 
     // 3. Optional User Chat context (Verify signature if user details are provided)
     let activeConversation = null;
+    let userConversations: any[] = [];
     let messages: any[] = [];
     let isVerified = false;
 
     if (userId && email && signature) {
       isVerified = verifySignature(project.tp_api_key, userId, email, signature);
       if (isVerified) {
-        // Fetch active conversation for this user in the project
-        const { data: conversation } = await supabase
+        // Fetch all past conversations for this user in the project
+        const { data: conversations } = await supabase
           .from('tbl_chat_conversations')
-          .select('tc_id, tc_subject, tc_category, tc_status, tc_is_priority, tc_metadata')
+          .select('tc_id, tc_subject, tc_category, tc_status, tc_is_priority, tc_metadata, tc_created_at, tc_updated_at')
           .eq('tc_project_id', projectId)
           .eq('tc_user_id', userId)
           .eq('tc_deleted_flag', false)
-          .order('tc_created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order('tc_created_at', { ascending: false });
 
-        if (conversation) {
-          activeConversation = conversation;
+        userConversations = conversations || [];
+        if (userConversations.length > 0) {
+          // Default to latest conversation
+          activeConversation = userConversations[0];
           // Fetch message history for this conversation
           const { data: messageLogs } = await supabase
             .from('tbl_chat_messages')
             .select('tm_id, tm_sender_id, tm_sender_role, tm_message, tm_attachments, tm_created_at')
-            .eq('tm_conversation_id', conversation.tc_id)
+            .eq('tm_conversation_id', activeConversation.tc_id)
             .eq('tm_deleted_flag', false)
             .order('tm_created_at', { ascending: true });
 
@@ -109,6 +117,7 @@ export async function GET(req: NextRequest) {
       faqs: faqs || [],
       isVerified,
       activeConversation,
+      userConversations,
       messages,
     });
 

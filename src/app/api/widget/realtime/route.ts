@@ -87,9 +87,24 @@ export async function GET(req: NextRequest) {
               );
               msg = { ...msg, tm_attachments: updatedAttachments };
 
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify(msg)}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'message', data: msg })}\n\n`));
             } catch (err) {
               console.error('SSE widget dispatch error:', err);
+            }
+          })
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'management',
+            table: 'tbl_chat_conversations',
+            filter: `tc_id=eq.${conversationId}`,
+          }, async (payload) => {
+            try {
+              const updatedConv = payload.new;
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ type: 'conversation_update', status: updatedConv.tc_status, conversation: updatedConv })}\n\n`)
+              );
+            } catch (err) {
+              console.error('SSE widget conversation status dispatch error:', err);
             }
           })
           .subscribe();

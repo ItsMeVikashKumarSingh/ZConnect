@@ -4,6 +4,9 @@ const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32;
 const IV_LENGTH = 12;
 
+if (!process.env.INTEGRATION_ENCRYPTION_KEY) {
+  console.warn('[SECURITY WARNING] INTEGRATION_ENCRYPTION_KEY environment variable is not set. Using local development fallback key.');
+}
 const masterKeyStr = process.env.INTEGRATION_ENCRYPTION_KEY || 'fallback-master-key-must-be-32-chars-long-1234';
 
 function getDerivedKey(): Buffer {

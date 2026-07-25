@@ -13,10 +13,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
     }
 
-    // 1. Verify operator session
-    const decoded = verifyJWT(token, process.env.JWT_SECRET || 'fallback-secret');
+    // 1. Fetch project secret key tp_api_key to verify client token
+    const { data: project, error: projectErr } = await supabase
+      .from('tbl_chat_projects')
+      .select('tp_api_key, tp_status_flag, tp_deleted_flag')
+      .eq('tp_id', projectId)
+      .single();
+
+    if (projectErr || !project || !project.tp_status_flag || project.tp_deleted_flag) {
+      return NextResponse.json({ success: false, error: 'Project inactive or not found' }, { status: 404 });
+    }
+
+    // 2. Verify operator session using the project's secret key
+    const decoded = verifyJWT(token, project.tp_api_key);
     if (!decoded || decoded.role !== 'client' || decoded.projectId !== projectId) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'Unauthorized operator session' }, { status: 401 });
     }
 
     const encoder = new TextEncoder();

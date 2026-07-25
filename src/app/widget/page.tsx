@@ -3,10 +3,8 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  HelpCircle,
   Send,
   Search,
-  User,
   MessageSquare,
   ArrowLeft,
   Loader2,
@@ -14,11 +12,14 @@ import {
   LogIn,
   Paperclip,
   Smile,
-  ThumbsUp,
-  Heart,
-  SmilePlus,
   FileText,
-  X
+  X,
+  History,
+  CheckCircle,
+  Plus,
+  ChevronDown,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { ZConnectLogo } from '../../components/ZConnectLogo';
 
@@ -89,7 +90,12 @@ function WidgetContent() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
-  // Advanced features: Typing state, emoji panel, attachments mockup
+  // Multi-ticket / history state
+  const [userConversations, setUserConversations] = useState<any[]>([]);
+  const [ticketHistoryOpen, setTicketHistoryOpen] = useState(false);
+  const [conversationStatus, setConversationStatus] = useState<string>('');
+
+  // Advanced features: Typing state, emoji panel, attachments
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -173,11 +179,22 @@ function WidgetContent() {
             }
           }
           setFaqs(data.faqs || []);
+          if (data.userConversations) {
+            setUserConversations(data.userConversations);
+          }
 
           if (data.activeConversation) {
             setConversation(data.activeConversation);
+            setConversationStatus(data.activeConversation.tc_status || 'open');
             setMessages(data.messages || []);
             setMode('chat');
+            // Persist last active ticket per project to localStorage
+            try {
+              localStorage.setItem(
+                `zconnect_session_${projectId}`,
+                JSON.stringify({ conversationId: data.activeConversation.tc_id })
+              );
+            } catch (_) {}
           } else {
             setMode((data.widgetConfig?.defaultMode as any) || 'faq');
           }
@@ -209,19 +226,34 @@ function WidgetContent() {
 
     const handleMessage = (event: MessageEvent) => {
       try {
-        const newMsg = JSON.parse(event.data);
-        if (newMsg && newMsg.tm_id) {
-          // Ignore own messages (handled synchronously by send_message) to prevent race duplicates
-          if (newMsg.tm_sender_id === identity.userId) return;
+        const parsed = JSON.parse(event.data);
 
-          setMessages((prev) => {
-            const exists = prev.some((m) => m.tm_id === newMsg.tm_id);
-            if (exists) return prev;
-            return [...prev, newMsg];
-          });
+        if (parsed.type === 'message') {
+          const newMsg = parsed.data;
+          if (newMsg && newMsg.tm_id) {
+            // Ignore own messages (handled synchronously by send_message)
+            if (newMsg.tm_sender_id === identity.userId) return;
+            setMessages((prev) => {
+              const exists = prev.some((m) => m.tm_id === newMsg.tm_id);
+              if (exists) return prev;
+              return [...prev, newMsg];
+            });
+          }
+        } else if (parsed.type === 'conversation_update') {
+          // Real-time ticket status update from operator
+          setConversationStatus(parsed.status || 'open');
+          setConversation((prev: any) => ({ ...prev, tc_status: parsed.status }));
+          // Refresh history list to reflect new status
+          setUserConversations((prev) =>
+            prev.map((c) =>
+              c.tc_id === parsed.conversation?.tc_id
+                ? { ...c, tc_status: parsed.status }
+                : c
+            )
+          );
         }
       } catch (err) {
-        console.error('Failed to parse SSE message', err);
+        console.error('Failed to parse SSE event', err);
       }
     };
 
@@ -304,10 +336,19 @@ function WidgetContent() {
       const data = await res.json();
 
       if (data.success) {
-        setConversation(data.conversation);
+        const newConv = data.conversation;
+        setConversation(newConv);
+        setConversationStatus(newConv.tc_status || 'open');
         setMessages([data.message]);
+        setUserConversations((prev) => [newConv, ...prev]);
         setMode('chat');
-        window.parent.postMessage({ type: 'zorvik_chat_started', conversationId: data.conversation.tc_id }, '*');
+        try {
+          localStorage.setItem(
+            `zconnect_session_${projectId}`,
+            JSON.stringify({ conversationId: newConv.tc_id })
+          );
+        } catch (_) {}
+        window.parent.postMessage({ type: 'zorvik_chat_started', conversationId: newConv.tc_id }, '*');
       }
     } catch (err) {
       console.error('Failed to connect to agent', err);
@@ -459,6 +500,43 @@ function WidgetContent() {
     }
   };
 
+  // Switch to a specific ticket from history
+  const switchToConversation = async (conv: any) => {
+    setTicketHistoryOpen(false);
+    setConversation(conv);
+    setConversationStatus(conv.tc_status || 'open');
+    setMessages([]);
+    setMode('chat');
+    // Fetch messages for selected conversation
+    try {
+      const query = new URLSearchParams({
+        projectId: projectId!,
+        conversationId: conv.tc_id,
+        ...(identity.userId && { userId: identity.userId }),
+        ...(identity.email && { email: identity.email }),
+        ...(identity.signature && { signature: identity.signature }),
+      });
+      const res = await fetch(`/api/widget/messages?${query.toString()}`);
+      const data = await res.json();
+      if (data.success) setMessages(data.messages || []);
+    } catch (_) {}
+    try {
+      localStorage.setItem(
+        `zconnect_session_${projectId}`,
+        JSON.stringify({ conversationId: conv.tc_id })
+      );
+    } catch (_) {}
+  };
+
+  // Start a brand new ticket
+  const startNewTicket = () => {
+    setTicketHistoryOpen(false);
+    setConversation(null);
+    setMessages([]);
+    setConversationStatus('');
+    setMode('handover');
+  };
+
   if (mode === 'loading') {
     return (
       <div className="flex h-full min-h-[400px] flex-col items-center justify-center text-muted-foreground bg-background">
@@ -475,19 +553,19 @@ function WidgetContent() {
       }`}
     >
       {/* Header Widget Navbar */}
-      <header className="flex items-center justify-between border-b border-border px-6 py-4 bg-card shrink-0 shadow-sm">
-        <div className="flex items-center gap-3 overflow-hidden">
+      <header className="flex items-center justify-between border-b border-border px-4 py-3 bg-card shrink-0 shadow-sm">
+        <div className="flex items-center gap-2 overflow-hidden">
           {mode !== config.defaultMode && (
             <button
               onClick={() => setMode(config.defaultMode as any)}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
-              <ArrowLeft className="h-4.5 w-4.5" />
+              <ArrowLeft className="h-4 w-4" />
             </button>
           )}
           <div className="flex items-center gap-2 overflow-hidden">
-            <div className="h-8 w-8 rounded-full bg-primary-accent flex items-center justify-center text-primary-accent-foreground">
-              <ZConnectLogo size={20} />
+            <div className="h-7 w-7 rounded-full bg-primary-accent flex items-center justify-center text-primary-accent-foreground">
+              <ZConnectLogo size={16} />
             </div>
             <div className="overflow-hidden">
               <h2 className="text-xs font-bold tracking-wider uppercase font-mono truncate text-foreground">
@@ -497,12 +575,63 @@ function WidgetContent() {
             </div>
           </div>
         </div>
-        {priority && (
-          <span className="flex items-center gap-1 bg-gold-accent/15 border border-gold-accent/30 text-gold-accent px-2 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase font-mono shrink-0">
-            <Sparkles className="h-2.5 w-2.5" />
-            Priority
-          </span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {priority && (
+            <span className="flex items-center gap-1 bg-gold-accent/15 border border-gold-accent/30 text-gold-accent px-2 py-0.5 rounded text-[8px] font-bold tracking-wider uppercase font-mono">
+              <Sparkles className="h-2.5 w-2.5" />
+              Priority
+            </span>
+          )}
+          {/* Ticket History Switcher — shown for verified logged-in users */}
+          {userConversations.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setTicketHistoryOpen((o) => !o)}
+                className="flex items-center gap-1 text-[10px] font-bold border border-border bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg transition-all"
+              >
+                <History className="h-3 w-3" />
+                Tickets ({userConversations.length})
+                <ChevronDown className={`h-3 w-3 transition-transform ${ticketHistoryOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {ticketHistoryOpen && (
+                <div className="absolute right-0 top-full mt-1 w-64 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Your Tickets</span>
+                    <button
+                      onClick={startNewTicket}
+                      className="flex items-center gap-1 text-[10px] font-bold text-primary-accent hover:text-primary-accent/80 transition-colors"
+                    >
+                      <Plus className="h-3 w-3" /> New
+                    </button>
+                  </div>
+                  <div className="max-h-52 overflow-y-auto">
+                    {userConversations.map((c) => (
+                      <button
+                        key={c.tc_id}
+                        onClick={() => switchToConversation(c)}
+                        className={`w-full text-left px-3 py-2.5 hover:bg-muted/50 transition-colors border-b border-border/40 last:border-0 ${
+                          conversation?.tc_id === c.tc_id ? 'bg-primary-accent/5' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold text-foreground truncate flex-1">{c.tc_subject || 'Support Request'}</span>
+                          <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
+                            c.tc_status === 'resolved' || c.tc_status === 'closed'
+                              ? 'bg-green-500/15 text-green-500'
+                              : 'bg-primary-accent/15 text-primary-accent'
+                          }`}>
+                            {c.tc_status || 'open'}
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-muted-foreground capitalize">{c.tc_category || 'general'}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </header>
 
       {/* FAQ Search Mode */}
@@ -668,15 +797,40 @@ function WidgetContent() {
       {mode === 'chat' && (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Status Bar */}
-          <div className="bg-muted/40 px-6 py-2 border-b border-border flex items-center justify-between text-[10px] shrink-0">
-            <span className="text-muted-foreground truncate max-w-[200px]">
-              Topic: <strong className="text-foreground">{conversation?.tc_subject}</strong>
+          <div className="bg-muted/40 px-4 py-2 border-b border-border flex items-center justify-between text-[10px] shrink-0">
+            <span className="text-muted-foreground truncate max-w-[170px]">
+              <strong className="text-foreground">{conversation?.tc_subject || 'Support Request'}</strong>
             </span>
-            <span className="flex items-center gap-1.5 font-bold shrink-0">
-              <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-              {conversation?.tc_status === 'resolved' ? 'Resolved' : 'Active Thread'}
+            <span className={`flex items-center gap-1.5 font-bold shrink-0 ${
+              conversationStatus === 'resolved' || conversationStatus === 'closed'
+                ? 'text-green-500'
+                : 'text-primary-accent'
+            }`}>
+              <span className={`h-2 w-2 rounded-full ${
+                conversationStatus === 'resolved' || conversationStatus === 'closed'
+                  ? 'bg-green-500'
+                  : 'bg-primary-accent animate-pulse'
+              }`}></span>
+              {conversationStatus === 'resolved' ? 'Resolved' : conversationStatus === 'closed' ? 'Closed' : 'Active'}
             </span>
           </div>
+
+          {/* Resolved / Closed status banner */}
+          {(conversationStatus === 'resolved' || conversationStatus === 'closed') && (
+            <div className="bg-green-500/10 border-b border-green-500/20 px-4 py-3 flex items-start gap-3 shrink-0">
+              <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-bold text-green-500">Ticket {conversationStatus === 'resolved' ? 'Resolved' : 'Closed'}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">This conversation has been closed by our team. Need more help?</p>
+              </div>
+              <button
+                onClick={startNewTicket}
+                className="flex items-center gap-1 text-[10px] font-bold text-primary-accent hover:text-primary-accent/80 bg-primary-accent/10 border border-primary-accent/20 px-2 py-1 rounded-lg transition-all shrink-0"
+              >
+                <Plus className="h-3 w-3" /> New Ticket
+              </button>
+            </div>
+          )}
 
           {/* Message Thread */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-background/50">
