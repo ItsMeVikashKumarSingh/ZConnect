@@ -73,6 +73,9 @@ export default function LandingPage() {
   // Simulator Visibility Toggle
   const [showSimulator, setShowSimulator] = useState(false);
 
+  // Mobile nav menu
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   // ----------------------------------------------------
   // REAL-TIME TICKETING SIMULATOR STATE
   // ----------------------------------------------------
@@ -123,7 +126,7 @@ export default function LandingPage() {
     }
   ]);
 
-  const [selectedTicketId, setSelectedTicketId] = useState<string>('tick-101');
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>('tick-101');
 
   // USER WIDGET SIDE STATES
   const [widgetMode, setWidgetMode] = useState<'faq' | 'prechat' | 'handover' | 'chat'>('faq');
@@ -248,7 +251,7 @@ export default function LandingPage() {
 
   const handleAgentConsoleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agentInput.trim()) return;
+    if (!agentInput.trim() || !selectedTicketId) return;
 
     const newMsg: SimMessage = {
       id: `msg-${Date.now()}`,
@@ -332,44 +335,75 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground relative transition-colors duration-300">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-background text-foreground relative transition-colors duration-300">
       {/* Ambient background decoration */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-primary-accent/5 rounded-full blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-10 right-1/4 w-[500px] h-[500px] bg-gold-accent/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-primary-accent/5 rounded-full blur-[100px] sm:blur-[150px] pointer-events-none overflow-hidden max-w-full" />
+      <div className="absolute bottom-10 right-0 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-gold-accent/5 rounded-full blur-[80px] sm:blur-[120px] pointer-events-none overflow-hidden max-w-full" />
 
       {/* Navigation Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-40 transition-colors">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <ZConnectLogo showText size={36} />
-          
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-muted-foreground">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+          <ZConnectLogo showText size={30} />
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-muted-foreground">
             <button onClick={() => { setShowSimulator(true); setTimeout(() => { document.getElementById('chat-capabilities')?.scrollIntoView({ behavior: 'smooth' }); }, 100); }} className="hover:text-foreground transition-colors font-semibold bg-transparent border-none cursor-pointer font-sans">Live Simulator</button>
-            <a href="#features" className="hover:text-foreground transition-colors">Platform Features</a>
+            <a href="#features" className="hover:text-foreground transition-colors">Platform</a>
             <a href="#playground" className="hover:text-foreground transition-colors">Personalization</a>
-            <a href="#security" className="hover:text-foreground transition-colors">Enterprise Security</a>
+            <a href="#security" className="hover:text-foreground transition-colors">Security</a>
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <button
               onClick={() => router.push('/login')}
-              className="text-sm font-bold text-muted-foreground hover:text-foreground transition-colors px-4 py-2"
+              className="hidden sm:block text-sm font-bold text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
             >
               Sign In
             </button>
             <button
               onClick={() => router.push('/login')}
-              className="bg-primary-accent hover:bg-primary-accent-hover text-primary-accent-foreground text-sm font-bold px-5 py-2.5 rounded-lg shadow-sm transition-all"
+              className="bg-primary-accent hover:bg-primary-accent-hover text-primary-accent-foreground text-xs md:text-sm font-bold px-3 md:px-5 py-2 md:py-2.5 rounded-lg shadow-sm transition-all"
             >
               Launch Portal
             </button>
+            {/* Mobile Hamburger */}
+            <button
+              onClick={() => setMobileNavOpen(v => !v)}
+              className="md:hidden p-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors"
+              aria-label="Open menu"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                {mobileNavOpen ? (
+                  <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></>
+                ) : (
+                  <><line x1="3" y1="8" x2="21" y2="8" /><line x1="3" y1="16" x2="21" y2="16" /></>
+                )}
+              </svg>
+            </button>
           </div>
         </div>
+
+        {/* Mobile Nav Drawer */}
+        {mobileNavOpen && (
+          <div className="md:hidden border-t border-border bg-card/95 backdrop-blur-md px-4 py-4 space-y-1">
+            <button
+              onClick={() => { setMobileNavOpen(false); setShowSimulator(true); setTimeout(() => { document.getElementById('chat-capabilities')?.scrollIntoView({ behavior: 'smooth' }); }, 100); }}
+              className="w-full text-left px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            >Live Simulator</button>
+            <a href="#features" onClick={() => setMobileNavOpen(false)} className="block px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">Platform Features</a>
+            <a href="#playground" onClick={() => setMobileNavOpen(false)} className="block px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">Personalization</a>
+            <a href="#security" onClick={() => setMobileNavOpen(false)} className="block px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">Enterprise Security</a>
+            <div className="pt-2 border-t border-border">
+              <button onClick={() => router.push('/login')} className="w-full text-left px-3 py-2.5 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors">Sign In</button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 pt-20 pb-16 text-center md:text-left flex flex-col md:flex-row items-center gap-12">
-        <div className="flex-1 space-y-6">
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.1] max-w-2xl text-foreground">
+      <section className="max-w-7xl mx-auto px-4 md:px-6 pt-12 md:pt-20 pb-12 md:pb-16 text-center md:text-left flex flex-col md:flex-row items-center gap-8 md:gap-12">
+        <div className="flex-1 space-y-5 md:space-y-6">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight leading-[1.1] max-w-2xl text-foreground">
             Real-Time Customer Chat. <span className="text-primary-accent">Delivered Instantly.</span>
           </h1>
           <p className="text-muted-foreground text-lg md:text-xl max-w-xl leading-relaxed">
@@ -392,8 +426,8 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="flex-1 w-full max-w-md md:max-w-none">
-          <div className="premium-card relative overflow-hidden bg-card/60 backdrop-blur-sm border-border p-6 shadow-xl space-y-4">
+        <div className="flex-1 w-full max-w-sm sm:max-w-md md:max-w-none">
+          <div className="premium-card relative overflow-hidden bg-card/60 backdrop-blur-sm border-border p-4 sm:p-6 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-red-500"></span>
@@ -402,18 +436,18 @@ export default function LandingPage() {
               </div>
               <span className="text-xs font-semibold text-muted-foreground font-mono">ZConnect Support Portal</span>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="p-4 bg-muted/50 rounded-xl space-y-1">
-                <span className="text-2xl font-bold text-foreground">142</span>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Active Tickets</p>
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+              <div className="p-2 sm:p-4 bg-muted/50 rounded-xl space-y-0.5 sm:space-y-1 text-center sm:text-left">
+                <span className="text-lg sm:text-2xl font-bold text-foreground">142</span>
+                <p className="text-[8px] sm:text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Active Tickets</p>
               </div>
-              <div className="p-4 bg-muted/50 rounded-xl space-y-1">
-                <span className="text-2xl font-bold text-primary-accent">99.8%</span>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">SLA Met</p>
+              <div className="p-2 sm:p-4 bg-muted/50 rounded-xl space-y-0.5 sm:space-y-1 text-center sm:text-left">
+                <span className="text-lg sm:text-2xl font-bold text-primary-accent">99.8%</span>
+                <p className="text-[8px] sm:text-[10px] text-muted-foreground font-bold uppercase tracking-wider">SLA Met</p>
               </div>
-              <div className="p-4 bg-muted/50 rounded-xl space-y-1">
-                <span className="text-2xl font-bold text-gold-accent">1.2m</span>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider font-mono">Response</p>
+              <div className="p-2 sm:p-4 bg-muted/50 rounded-xl space-y-0.5 sm:space-y-1 text-center sm:text-left">
+                <span className="text-lg sm:text-2xl font-bold text-gold-accent">1.2m</span>
+                <p className="text-[8px] sm:text-[10px] text-muted-foreground font-bold uppercase tracking-wider font-mono">Response</p>
               </div>
             </div>
             <div className="border border-border rounded-xl p-4 space-y-3 bg-background/50">
@@ -509,41 +543,41 @@ export default function LandingPage() {
 
         {/* Inline Simulator Panel (Side-by-Side) */}
         {showSimulator && (
-          <div className="max-w-6xl mx-auto w-full border border-border rounded-2xl overflow-hidden shadow-2xl bg-card mt-6">
+          <div className="w-full border border-border rounded-2xl overflow-hidden shadow-2xl bg-card mt-6">
             {/* Panel header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/40">
-              <div className="flex items-center gap-3">
-                <ZConnectLogo size={24} />
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">
-                    Live Support Ticketing Simulator Sandbox
+            <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-border bg-muted/40 gap-3">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <ZConnectLogo size={20} />
+                <div className="min-w-0">
+                  <h3 className="text-xs md:text-sm font-bold text-foreground truncate">
+                    Live Support Simulator Sandbox
                   </h3>
-                  <p className="text-[10px] text-muted-foreground font-mono">
-                    Real-time side-by-side customer-to-operator workspace simulation
+                  <p className="text-[9px] md:text-[10px] text-muted-foreground font-mono hidden sm:block">
+                    Real-time side-by-side customer-to-operator simulation
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
                 <button
                   onClick={handleResetSimulator}
-                  className="text-xs border border-border bg-card hover:bg-muted text-foreground font-mono font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                  className="text-[10px] md:text-xs border border-border bg-card hover:bg-muted text-foreground font-mono font-bold px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-colors cursor-pointer"
                 >
-                  Reset Sandbox
+                  Reset
                 </button>
                 <button
                   onClick={() => setShowSimulator(false)}
-                  className="h-8 w-8 rounded-lg border border-border bg-card hover:bg-muted text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                  className="h-7 w-7 md:h-8 md:w-8 rounded-lg border border-border bg-card hover:bg-muted text-foreground flex items-center justify-center transition-colors cursor-pointer"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </button>
               </div>
             </div>
 
-            {/* Side-by-Side Sandbox Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 p-6">
+            {/* Side-by-Side Sandbox Grid — stacks on mobile, side-by-side on lg */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 p-4 md:p-6">
               
               {/* USER WIDGET PANEL (4 COLS) */}
-              <div className="lg:col-span-4 space-y-2">
+              <div className="lg:col-span-4 space-y-2 min-w-0">
                 <div className="flex justify-between items-center px-1">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono tracking-wider">1. User Widget Screen</span>
                   <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -636,7 +670,7 @@ export default function LandingPage() {
               </div>
 
               {/* OPERATOR DASHBOARD PANEL (8 COLS) */}
-              <div className="lg:col-span-8 space-y-2">
+              <div className="lg:col-span-8 space-y-2 min-w-0">
                 <div className="flex justify-between items-center px-1">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase font-mono tracking-wider">2. Operator Inbox Dashboard</span>
                   <span className="text-[10px] text-primary-accent font-bold">ZConnect Console Preview</span>
@@ -650,7 +684,8 @@ export default function LandingPage() {
                     <div className="text-[9px] text-muted-foreground font-mono font-bold">Node ID: LANDING_SANDBOX</div>
                   </div>
                   <div className="flex-1 flex overflow-hidden">
-                    <div className="w-52 border-r border-border flex flex-col overflow-hidden bg-muted/10 shrink-0">
+                    {/* Ticket List Sidebar */}
+                    <div className={`w-full md:w-52 border-r border-border flex flex-col overflow-hidden bg-muted/10 shrink-0 ${selectedTicketId ? 'hidden md:flex' : 'flex'}`}>
                       <div className="p-2 border-b border-border flex gap-1 shrink-0">
                         <button onClick={() => setAgentInboxFilter(agentInboxFilter === 'all' ? 'open' : 'all')} className={`text-[8px] font-bold border border-border px-2 py-0.5 rounded flex items-center gap-1 ${agentInboxFilter !== 'all' ? 'bg-primary-accent/15 border-primary-accent text-primary-accent' : 'bg-card text-muted-foreground'}`}>
                           <Filter className="h-2.5 w-2.5" /> Filter Open
@@ -675,16 +710,26 @@ export default function LandingPage() {
                         })}
                       </div>
                     </div>
-                    <div className="flex-1 flex flex-col overflow-hidden bg-background/30">
+
+                    {/* Active Conversation Panel */}
+                    <div className={`flex-1 flex flex-col overflow-hidden bg-background/30 ${selectedTicketId ? 'flex' : 'hidden md:flex'}`}>
                       {selectedTicketId ? (() => {
                         const activeTicket = tickets.find(t => t.id === selectedTicketId);
                         if (!activeTicket) return null;
                         return (
                           <div className="flex-1 flex flex-col overflow-hidden">
                             <div className="p-3 border-b border-border bg-card flex items-center justify-between shrink-0">
-                              <div className="overflow-hidden">
-                                <h4 className="text-xs font-bold text-foreground truncate">{activeTicket.subject}</h4>
-                                <p className="text-[9px] text-muted-foreground font-mono mt-0.5 truncate">User: {activeTicket.userName} ({activeTicket.userEmail})</p>
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <button
+                                  onClick={() => setSelectedTicketId(null)}
+                                  className="md:hidden p-1 hover:bg-muted rounded text-muted-foreground mr-1"
+                                >
+                                  <ArrowLeft className="h-3.5 w-3.5" />
+                                </button>
+                                <div className="overflow-hidden">
+                                  <h4 className="text-xs font-bold text-foreground truncate">{activeTicket.subject}</h4>
+                                  <p className="text-[9px] text-muted-foreground font-mono mt-0.5 truncate">User: {activeTicket.userName} ({activeTicket.userEmail})</p>
+                                </div>
                               </div>
                               {activeTicket.status === 'open' ? (
                                 <button onClick={() => handleAgentResolve(activeTicket.id)} className="bg-green-500 hover:bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded flex items-center gap-1 shrink-0 cursor-pointer"><Check className="h-3 w-3" /> Resolve</button>
@@ -737,10 +782,10 @@ export default function LandingPage() {
       </section>
 
       {/* Platform Features */}
-      <section id="features" className="max-w-7xl mx-auto px-6 py-20 border-t border-border/60 space-y-12">
-        <div className="text-center max-w-2xl mx-auto space-y-4">
+      <section id="features" className="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-20 border-t border-border/60 space-y-8 md:space-y-12">
+        <div className="text-center max-w-2xl mx-auto space-y-3 md:space-y-4">
           <span className="text-xs font-bold tracking-widest text-primary-accent uppercase font-mono">Platform Ecosystem</span>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">Cohesive Support Infrastructure</h2>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Cohesive Support Infrastructure</h2>
           <p className="text-muted-foreground text-md leading-relaxed">
             Every layer of the ZConnect ecosystem is aligned to deliver a modern, cohesive experience for operators and clients.
           </p>
@@ -780,16 +825,16 @@ export default function LandingPage() {
       </section>
 
       {/* Interactive Theme Playground */}
-      <section id="playground" className="max-w-7xl mx-auto px-6 py-20 border-t border-border/60 space-y-12">
-        <div className="text-center max-w-2xl mx-auto space-y-4">
+      <section id="playground" className="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-20 border-t border-border/60 space-y-8 md:space-y-12">
+        <div className="text-center max-w-2xl mx-auto space-y-3 md:space-y-4">
           <span className="text-xs font-bold tracking-widest text-primary-accent uppercase font-mono">Customization Options</span>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">Dynamic Brand Alignment</h2>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Dynamic Brand Alignment</h2>
           <p className="text-muted-foreground text-md leading-relaxed">
             Allow your tenants to match ZConnect directly to their website styling. Test how theme selectors and accent presets adapt components immediately.
           </p>
         </div>
 
-        <div className="premium-card bg-card max-w-4xl mx-auto p-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <div className="premium-card bg-card max-w-4xl mx-auto p-4 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 items-center">
           {/* Controls Panel */}
           <div className="space-y-6">
             <div className="space-y-3">
@@ -827,7 +872,7 @@ export default function LandingPage() {
 
             <div className="space-y-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground font-mono">Accent Colors</h3>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {presets.map(p => (
                   <button
                     key={p.value}
@@ -923,8 +968,8 @@ export default function LandingPage() {
       </section>
 
       {/* Security Trust Section */}
-      <section id="security" className="max-w-7xl mx-auto px-6 py-20 border-t border-border/60 bg-muted/30">
-        <div className="max-w-3xl mx-auto text-center space-y-6">
+      <section id="security" className="max-w-7xl mx-auto px-4 md:px-6 py-12 md:py-20 border-t border-border/60 bg-muted/30">
+        <div className="max-w-3xl mx-auto text-center space-y-4 md:space-y-6">
           <Shield className="h-10 w-10 text-primary-accent mx-auto" />
           <h2 className="text-2xl font-bold text-foreground">Decoupled Security Integrity</h2>
           <p className="text-muted-foreground text-sm md:text-md leading-relaxed max-w-2xl mx-auto">
@@ -934,8 +979,8 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-12 bg-card transition-colors">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6 text-sm text-muted-foreground">
+      <footer className="border-t border-border py-8 md:py-12 bg-card transition-colors">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-6 text-sm text-muted-foreground">
           <ZConnectLogo showText size={28} />
           <p>&copy; {new Date().getFullYear()} Zorvik Technologies Inc. All rights reserved.</p>
           <div className="flex gap-4">

@@ -164,25 +164,69 @@ function DashboardContent() {
     if (token && projectId) fetchWorkspaceData();
   }, [token, projectId]);
 
-  // 3. Poll messages if a ticket is selected
+  const selectedConvIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!selectedConv?.tc_id || !token || !projectId) return;
+    selectedConvIdRef.current = selectedConv?.tc_id || null;
+  }, [selectedConv]);
 
-    const interval = setInterval(async () => {
+  // 3. Subscribe to Realtime dashboard updates (conversations & messages) via SSE
+  useEffect(() => {
+    if (!token || !projectId) return;
+
+    const query = new URLSearchParams({
+      projectId,
+      token,
+    });
+
+    const eventSource = new EventSource(`/api/dashboard/realtime?${query.toString()}`);
+
+    eventSource.onmessage = (event) => {
       try {
-        const headers = { Authorization: `Bearer ${token}` };
-        const res = await fetch(`/api/dashboard?projectId=${projectId}&action=messages&conversationId=${selectedConv.tc_id}`, { headers });
-        const data = await res.json();
-        if (data.success) {
-          setMessages(data.messages);
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'conversation') {
+          const conv = payload.data;
+          setConversations((prev) => {
+            const idx = prev.findIndex((c) => c.tc_id === conv.tc_id);
+            if (idx > -1) {
+              const updated = [...prev];
+              updated[idx] = conv;
+              return updated.sort((a, b) => new Date(b.tc_updated_at).getTime() - new Date(a.tc_updated_at).getTime());
+            } else {
+              return [conv, ...prev];
+            }
+          });
+
+          // Sync active selection status changes
+          if (selectedConvIdRef.current === conv.tc_id) {
+            setSelectedConv((current) => (current ? { ...current, tc_status: conv.tc_status, tc_updated_at: conv.tc_updated_at } : null));
+          }
+        } else if (payload.type === 'message') {
+          const msg = payload.data;
+          // Ignore own replies (handled synchronously by handleSendReply)
+          if (msg.tm_sender_id === tenantUserId) return;
+
+          // Check if this message belongs to the currently active conversation
+          if (selectedConvIdRef.current === msg.tm_conversation_id) {
+            setMessages((prev) => {
+              const exists = prev.some((m) => m.tm_id === msg.tm_id);
+              if (exists) return prev;
+              return [...prev, msg];
+            });
+          }
         }
       } catch (err) {
-        console.warn('Message polling failed', err);
+        console.error('Failed to parse SSE message:', err);
       }
-    }, 4500);
+    };
 
-    return () => clearInterval(interval);
-  }, [selectedConv, token, projectId]);
+    eventSource.onerror = (err) => {
+      console.warn('Dashboard SSE disconnected. Reconnecting...', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [token, projectId]);
 
   // 4. Scroll to bottom
   useEffect(() => {
@@ -363,6 +407,14 @@ function DashboardContent() {
             Manage FAQs
           </Link>
 
+          <Link
+            href={`/dashboard/integrations?token=${token}`}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+          >
+            <Settings className="h-4 w-4" />
+            Integrations
+          </Link>
+
           <div className="border-t border-border my-4 pt-4">
             <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider px-3 mb-2">Controls</span>
           </div>
@@ -462,6 +514,9 @@ function DashboardContent() {
             <div className="flex gap-4">
               <Link href={`/dashboard/faqs?token=${token}`} className="flex-1 py-2 text-center bg-muted text-xs font-bold rounded-lg hover:bg-muted/80">
                 FAQs Manager
+              </Link>
+              <Link href={`/dashboard/integrations?token=${token}`} className="flex-1 py-2 text-center bg-muted text-xs font-bold rounded-lg hover:bg-muted/80">
+                Integrations
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-4">

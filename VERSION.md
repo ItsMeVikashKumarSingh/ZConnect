@@ -1,5 +1,28 @@
 # VERSION HISTORY
 
+## [0.3.1] - 2026-07-25
+- Fixed mobile responsive layout viewport expansion issue by adding `overflow-x-hidden` and `w-full max-w-full` constraints to the page wrapper and root layout.
+- Constrained ambient blur glow elements to prevent horizontal viewport scrolling and half-screen shrinking on mobile screens.
+- Adapted hero stats grid padding and accent color selector grids for small mobile viewports.
+
+## [0.3.0] - 2026-07-25
+- Integrated Backblaze B2 private storage for chat attachments (PUT presigned upload URLs and GET pre-signed download URLs).
+- Added multi-platform Tenant Integrations Management interface under `/dashboard/integrations` supporting Slack, Discord, MS Teams, Telegram, and Custom Webhooks.
+- Added cryptographic AES-256-GCM webhook credentials protection in the database.
+- Implemented real-time messaging synchronization using secure Server-Sent Events (SSE) streams in both client widget (`/widget`) and operator dashboard (`/dashboard`), replacing 4.5-second interval polling with sub-second updates.
+- Verified build and zero warnings compliance.
+
+## [0.2.4] - 2026-07-19
+- Full responsive overhaul across all landing page sections.
+- Added mobile hamburger navigation drawer (hidden on md+, appears on mobile tap).
+- Nav Sign In button hidden on smallest screens to prevent header overflow.
+- "Launch Portal" button adapts size between mobile and desktop breakpoints.
+- Hero section font scaling: `text-3xl sm:text-4xl md:text-6xl`.
+- All sections use `px-4 md:px-6` and `py-12 md:py-20` responsive spacing.
+- Simulator sandbox header condensed for mobile: truncated title, hidden subtitle on xs, smaller Reset button.
+- Simulator panel no longer constrained to `max-w-6xl`; fills container on mobile.
+- Features, Playground, Security, and Footer sections now fully mobile-friendly.
+
 ## [0.2.3] - 2026-07-19
 - Added custom brand-aligned SVG favicon (`icon.svg`) matching Navy/Gold colors.
 - Removed legacy Next.js `favicon.ico` to prevent runtime favicon conflicts.

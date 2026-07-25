@@ -16,7 +16,9 @@ import {
   Smile,
   ThumbsUp,
   Heart,
-  SmilePlus
+  SmilePlus,
+  FileText,
+  X
 } from 'lucide-react';
 import { ZConnectLogo } from '../../components/ZConnectLogo';
 
@@ -32,6 +34,7 @@ interface Message {
   tm_sender_id: string;
   tm_sender_role: 'user' | 'client' | 'admin';
   tm_message: string;
+  tm_attachments?: any[];
   tm_created_at?: string;
   reactions?: string[];
 }
@@ -89,6 +92,11 @@ function WidgetContent() {
   // Advanced features: Typing state, emoji panel, attachments mockup
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // File upload state
+  const [attachments, setAttachments] = useState<Array<{ name: string; size: number; type: string; key: string }>>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pre-Chat Form State (for anonymous users)
   const [preChatForm, setPreChatForm] = useState({
@@ -185,30 +193,47 @@ function WidgetContent() {
     fetchConfig();
   }, [projectId, identity]);
 
-  // 3. Poll messages if in chat mode
+  // 3. Subscribe to Realtime messages via SSE
   useEffect(() => {
     if (mode !== 'chat' || !conversation?.tc_id || !projectId || !identity.userId || !identity.email || !identity.signature) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const query = new URLSearchParams({
-          projectId,
-          userId: identity.userId!,
-          email: identity.email!,
-          signature: identity.signature!,
-        });
+    const query = new URLSearchParams({
+      projectId,
+      conversationId: conversation.tc_id,
+      userId: identity.userId!,
+      email: identity.email!,
+      signature: identity.signature!,
+    });
 
-        const res = await fetch(`/api/widget?${query.toString()}`);
-        const data = await res.json();
-        if (data.success && data.messages) {
-          setMessages(data.messages);
+    const eventSource = new EventSource(`/api/widget/realtime?${query.toString()}`);
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const newMsg = JSON.parse(event.data);
+        if (newMsg && newMsg.tm_id) {
+          // Ignore own messages (handled synchronously by send_message) to prevent race duplicates
+          if (newMsg.tm_sender_id === identity.userId) return;
+
+          setMessages((prev) => {
+            const exists = prev.some((m) => m.tm_id === newMsg.tm_id);
+            if (exists) return prev;
+            return [...prev, newMsg];
+          });
         }
       } catch (err) {
-        console.warn('Failed to poll messages', err);
+        console.error('Failed to parse SSE message', err);
       }
-    }, 4500);
+    };
 
-    return () => clearInterval(interval);
+    eventSource.onmessage = handleMessage;
+
+    eventSource.onerror = (err) => {
+      console.warn('SSE EventSource disconnected. Reconnecting...', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, [mode, conversation, projectId, identity]);
 
   // 4. Scroll to bottom of chat
@@ -292,12 +317,70 @@ function WidgetContent() {
   };
 
   // 8. Send message in active chat
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId || !identity.userId || !identity.email || !identity.signature) return;
+
+    setUploading(true);
+    try {
+      // 1. Get presigned upload URL from backend
+      const res = await fetch('/api/widget/upload/presign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          userId: identity.userId,
+          email: identity.email,
+          signature: identity.signature,
+          filename: file.name,
+          filetype: file.type,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get upload signature');
+      }
+
+      const { uploadUrl, fileKey } = data;
+
+      // 2. Upload file directly to Backblaze B2 (pre-signed URL)
+      const b2Res = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type,
+        },
+        body: file,
+      });
+
+      if (!b2Res.ok) {
+        throw new Error('Upload to storage failed');
+      }
+
+      // 3. Add to attachments state
+      const newAttachment = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        key: fileKey,
+      };
+      setAttachments(prev => [...prev, newAttachment]);
+    } catch (err) {
+      console.error('File upload error:', err);
+      alert('Failed to upload file. Please try again.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !conversation?.tc_id || !identity.userId || !identity.email || !identity.signature) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !conversation?.tc_id || !identity.userId || !identity.email || !identity.signature) return;
 
     const messageText = newMessage;
+    const currentAttachments = attachments;
     setNewMessage('');
+    setAttachments([]);
     setSending(true);
 
     // Optimistic UI Append
@@ -305,6 +388,7 @@ function WidgetContent() {
       tm_sender_id: identity.userId,
       tm_sender_role: 'user',
       tm_message: messageText,
+      tm_attachments: currentAttachments.map(att => ({ ...att, url: '' })),
       tm_created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempMsg]);
@@ -323,6 +407,7 @@ function WidgetContent() {
           conversationId: conversation.tc_id,
           message: messageText,
           senderRole: 'user',
+          attachments: currentAttachments,
         }),
       });
       const data = await res.json();
@@ -609,6 +694,41 @@ function WidgetContent() {
                         }`}
                       >
                         <p className="whitespace-pre-wrap">{msg.tm_message}</p>
+                        
+                        {/* Attachments rendering */}
+                        {msg.tm_attachments && msg.tm_attachments.length > 0 && (
+                          <div className="mt-2 space-y-2 border-t border-border/10 pt-2 shrink-0">
+                            {msg.tm_attachments.map((att: any, attIdx: number) => {
+                              const isImg = att.type?.startsWith('image/');
+                              return (
+                                <div key={attIdx} className="max-w-full">
+                                  {isImg ? (
+                                    <a href={att.url || '#'} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg border border-border/20 bg-background/50 hover:opacity-90 transition-opacity">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={att.url || ''}
+                                        alt={att.name}
+                                        className="max-h-48 max-w-full object-contain mx-auto"
+                                        loading="lazy"
+                                      />
+                                    </a>
+                                  ) : (
+                                    <a
+                                      href={att.url || '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-2 p-2 rounded-lg bg-background/40 hover:bg-background/60 border border-border/20 transition-colors text-xs text-foreground font-semibold"
+                                    >
+                                      <FileText className="h-4 w-4 text-primary-accent shrink-0" />
+                                      <span className="truncate flex-1">{att.name}</span>
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
                         <span className={`block text-[8px] text-right mt-1 font-mono ${isMe ? 'opacity-70' : 'text-muted-foreground'}`}>
                           {msg.tm_created_at ? new Date(msg.tm_created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'}
                         </span>
@@ -666,9 +786,38 @@ function WidgetContent() {
               </div>
             )}
 
+            {/* Pending Attachments List */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-3 py-2 border-b border-border bg-muted/20 shrink-0">
+                {attachments.map((att, i) => (
+                  <div key={i} className="flex items-center gap-1.5 bg-card border border-border rounded-full pl-3 pr-2 py-1 text-[10px] max-w-[180px] truncate shadow-sm">
+                    <span className="truncate flex-1">{att.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments(prev => prev.filter((_, idx) => idx !== i))}
+                      className="text-muted-foreground hover:text-foreground p-0.5 hover:bg-muted rounded-full shrink-0 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <form onSubmit={handleSendMessage} className="flex gap-2.5 items-center">
-              <button type="button" className="text-muted-foreground hover:text-foreground transition-colors p-1.5 shrink-0">
-                <Paperclip className="h-4.5 w-4.5" />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || conversation?.tc_status === 'resolved'}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
+              >
+                {uploading ? <Loader2 className="h-4.5 w-4.5 animate-spin" /> : <Paperclip className="h-4.5 w-4.5" />}
               </button>
               
               <input
@@ -683,14 +832,15 @@ function WidgetContent() {
               <button
                 type="button"
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                className="text-muted-foreground hover:text-foreground transition-colors p-1.5 shrink-0"
+                className="text-muted-foreground hover:text-foreground transition-colors p-1.5 shrink-0 cursor-pointer"
+                disabled={conversation?.tc_status === 'resolved'}
               >
                 <Smile className="h-4.5 w-4.5" />
               </button>
 
               <button
                 type="submit"
-                disabled={sending || !newMessage.trim() || conversation?.tc_status === 'resolved'}
+                disabled={sending || (!newMessage.trim() && attachments.length === 0) || conversation?.tc_status === 'resolved'}
                 className="h-9 w-9 rounded-lg flex items-center justify-center text-primary-accent-foreground bg-primary-accent hover:bg-primary-accent-hover transition-colors disabled:opacity-50 shrink-0 cursor-pointer shadow-sm"
               >
                 <Send className="h-4 w-4" />

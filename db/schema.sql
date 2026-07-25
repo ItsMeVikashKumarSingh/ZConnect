@@ -65,6 +65,7 @@ CREATE TABLE chat.tbl_messages (
     tm_sender_id character varying(100) NOT NULL,
     tm_sender_role character varying(50) NOT NULL, -- 'user', 'client', 'admin'
     tm_message text NOT NULL,
+    tm_attachments jsonb DEFAULT '[]'::jsonb NOT NULL,
     tm_created_at timestamp with time zone DEFAULT now() NOT NULL,
     tm_status_flag boolean DEFAULT true,
     tm_deleted_flag boolean DEFAULT false
@@ -83,7 +84,26 @@ CREATE TABLE chat.tbl_canned_responses (
     CONSTRAINT unique_shortcut_per_project UNIQUE (tcr_project_id, tcr_shortcut)
 );
 
+-- 6. Tenant Integrations (Slack, Discord, MS Teams, Telegram, Webhooks)
+CREATE TABLE chat.tbl_integrations (
+    ti_id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+    ti_project_id uuid NOT NULL REFERENCES chat.tbl_projects(tp_id) ON DELETE CASCADE,
+    ti_platform character varying(50) NOT NULL, -- 'slack', 'discord', 'teams', 'telegram', 'custom_webhook'
+    ti_type character varying(50) NOT NULL, -- 'webhook', 'oauth'
+    ti_config jsonb DEFAULT '{
+        "events": ["chat_started", "message_received", "ticket_resolved"],
+        "channel_name": null,
+        "webhook_url": null
+    }'::jsonb NOT NULL,
+    ti_credentials text, -- AES-256-GCM encrypted OAuth credentials/tokens
+    ti_created_at timestamp with time zone DEFAULT now() NOT NULL,
+    ti_updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    ti_status_flag boolean DEFAULT true,
+    ti_deleted_flag boolean DEFAULT false
+);
+
 CREATE INDEX IF NOT EXISTS idx_chat_projects_client ON chat.tbl_projects(tp_client_id);
 CREATE INDEX IF NOT EXISTS idx_chat_faqs_project ON chat.tbl_faqs(tf_project_id, tf_category);
 CREATE INDEX IF NOT EXISTS idx_chat_convs_lookup ON chat.tbl_conversations(tc_project_id, tc_status);
 CREATE INDEX IF NOT EXISTS idx_chat_msgs_conv ON chat.tbl_messages(tm_conversation_id);
+CREATE INDEX IF NOT EXISTS idx_chat_integrations_project ON chat.tbl_integrations(ti_project_id) WHERE ti_deleted_flag = false;

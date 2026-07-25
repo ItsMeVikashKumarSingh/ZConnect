@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getDownloadPresignedUrl } from '@/lib/b2';
+import { triggerIntegrations } from '@/lib/integrations';
 import crypto from 'crypto';
 
 // Verify identity signature helper (supports anonymous bypass for public widgets)
@@ -73,12 +75,30 @@ export async function GET(req: NextRequest) {
           // Fetch message history for this conversation
           const { data: messageLogs } = await supabase
             .from('tbl_chat_messages')
-            .select('tm_id, tm_sender_id, tm_sender_role, tm_message, tm_created_at')
+            .select('tm_id, tm_sender_id, tm_sender_role, tm_message, tm_attachments, tm_created_at')
             .eq('tm_conversation_id', conversation.tc_id)
             .eq('tm_deleted_flag', false)
             .order('tm_created_at', { ascending: true });
 
-          messages = messageLogs || [];
+          let parsedMessages = messageLogs || [];
+          if (parsedMessages.length > 0) {
+            parsedMessages = await Promise.all(
+              parsedMessages.map(async (m) => {
+                const attachments = Array.isArray(m.tm_attachments) ? m.tm_attachments : [];
+                const updatedAttachments = await Promise.all(
+                  attachments.map(async (att: any) => {
+                    if (att.key) {
+                      const url = await getDownloadPresignedUrl(att.key, 3600);
+                      return { ...att, url };
+                    }
+                    return att;
+                  })
+                );
+                return { ...m, tm_attachments: updatedAttachments };
+              })
+            );
+          }
+          messages = parsedMessages;
         }
       }
     }
@@ -115,10 +135,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing core identity parameters' }, { status: 400 });
     }
 
-    // Fetch project to retrieve API Key
+    // Fetch project to retrieve API Key and Name
     const { data: project, error: projectError } = await supabase
       .from('tbl_chat_projects')
-      .select('tp_api_key, tp_status_flag, tp_deleted_flag')
+      .select('tp_name, tp_api_key, tp_status_flag, tp_deleted_flag')
       .eq('tp_id', projectId)
       .single();
 
@@ -134,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     // Action: Start human handover chat
     if (action === 'start_chat') {
-      const { subject, category, message, isPriority, metadata } = body;
+      const { subject, category, message, isPriority, metadata, attachments } = body;
       if (!subject || !category || !message) {
         return NextResponse.json({ success: false, error: 'Missing chat subject, category, or message' }, { status: 400 });
       }
@@ -166,9 +186,35 @@ export async function POST(req: NextRequest) {
           tm_sender_id: userId,
           tm_sender_role: 'user',
           tm_message: message,
+          tm_attachments: attachments || [],
         });
 
       if (msgError) throw msgError;
+
+      let responseAttachments = attachments || [];
+      if (responseAttachments.length > 0) {
+        responseAttachments = await Promise.all(
+          responseAttachments.map(async (att: any) => {
+            if (att.key) {
+              const url = await getDownloadPresignedUrl(att.key, 3600);
+              return { ...att, url };
+            }
+            return att;
+          })
+        );
+      }
+
+      // Dispatch Webhook alerts asynchronously (fire and forget)
+      triggerIntegrations(projectId, 'chat_started', {
+        projectName: project?.tp_name || 'ZConnect Project',
+        conversationId: newConv.tc_id,
+        userName: name || 'User',
+        userEmail: email,
+        subject,
+        category,
+        messageText: message,
+        attachments: responseAttachments,
+      }).catch((e) => console.error('Integration trigger failed:', e));
 
       return NextResponse.json({
         success: true,
@@ -177,6 +223,7 @@ export async function POST(req: NextRequest) {
           tm_sender_id: userId,
           tm_sender_role: 'user',
           tm_message: message,
+          tm_attachments: responseAttachments,
           tm_created_at: new Date().toISOString(),
         },
       });
@@ -184,7 +231,7 @@ export async function POST(req: NextRequest) {
 
     // Action: Send follow-up message
     if (action === 'send_message') {
-      const { conversationId, message, senderRole } = body;
+      const { conversationId, message, senderRole, attachments } = body;
       if (!conversationId || !message) {
         return NextResponse.json({ success: false, error: 'Missing conversationId or message text' }, { status: 400 });
       }
@@ -209,6 +256,7 @@ export async function POST(req: NextRequest) {
           tm_sender_id: userId,
           tm_sender_role: senderRole || 'user',
           tm_message: message,
+          tm_attachments: attachments || [],
         })
         .select('*')
         .single();
@@ -221,7 +269,50 @@ export async function POST(req: NextRequest) {
         .update({ tc_updated_at: new Date().toISOString() })
         .eq('tc_id', conversationId);
 
-      return NextResponse.json({ success: true, message: newMsg });
+      let responseMsg = newMsg;
+      if (responseMsg && Array.isArray(responseMsg.tm_attachments) && responseMsg.tm_attachments.length > 0) {
+        const updatedAttachments = await Promise.all(
+          responseMsg.tm_attachments.map(async (att: any) => {
+            if (att.key) {
+              const url = await getDownloadPresignedUrl(att.key, 3600);
+              return { ...att, url };
+            }
+            return att;
+          })
+        );
+        responseMsg = { ...responseMsg, tm_attachments: updatedAttachments };
+      }
+
+      // Fetch conversation info and project name to trigger message webhook asynchronously
+      Promise.all([
+        supabase
+          .from('tbl_chat_conversations')
+          .select('tc_user_name, tc_user_email, tc_subject, tc_category')
+          .eq('tc_id', conversationId)
+          .single(),
+        supabase
+          .from('tbl_chat_projects')
+          .select('tp_name')
+          .eq('tp_id', projectId)
+          .single()
+      ]).then(([convRes, projRes]) => {
+        const conv = convRes.data;
+        const projName = projRes.data?.tp_name || 'ZConnect Project';
+        if (conv) {
+          triggerIntegrations(projectId, 'message_received', {
+            projectName: projName,
+            conversationId,
+            userName: conv.tc_user_name,
+            userEmail: conv.tc_user_email,
+            subject: conv.tc_subject,
+            category: conv.tc_category,
+            messageText: message,
+            attachments: responseMsg?.tm_attachments || [],
+          });
+        }
+      }).catch((e) => console.error('Integration trigger failed:', e));
+
+      return NextResponse.json({ success: true, message: responseMsg });
     }
 
     return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
