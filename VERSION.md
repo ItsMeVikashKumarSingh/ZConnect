@@ -1,5 +1,9 @@
 # VERSION HISTORY
 
+## [0.5.2] - 2026-07-26
+- **Platform 1-Click Authentication**: Added direct **"Authenticate with Slack"**, **"Authenticate with Discord"**, **"Authenticate with MS Teams"**, **"Authenticate with Telegram"**, and **"Authenticate Webhook"** primary connection buttons in `/dashboard/integrations`.
+- **Auto-Auth Removal**: Completely removed unused auto-auth & site embed generator files.
+
 ## [0.5.1] - 2026-07-26
 - **Date Format Standardization**: Standardized thread last-updated timestamps to dd/mm/yyyy ('en-GB') in dashboard view.
 
