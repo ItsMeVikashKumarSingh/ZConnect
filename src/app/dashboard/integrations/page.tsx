@@ -175,7 +175,7 @@ function IntegrationsContent() {
       borderClass: 'border-primary-accent/40 hover:border-primary-accent',
       icon: Globe,
       placeholderUrl: 'https://yourdomain.com/api/webhooks/zconnect',
-      officialUrl: 'https://zconnect.zorviktech.com/docs/webhooks',
+      officialUrl: '/docs/webhooks',
       guideSteps: [
         'Deploy an HTTPS POST endpoint on your server (e.g. https://api.yourdomain.com/zconnect-webhook).',
         'Ensure your server accepts JSON POST bodies with event types: chat_started, message_received, ticket_resolved.',

@@ -1,5 +1,8 @@
 # VERSION HISTORY
 
+## [0.5.4] - 2026-07-26
+- **Public Webhooks Documentation Page**: Added dedicated `/docs/webhooks` page detailing event types (`chat_started`, `message_received`, `ticket_resolved`), JSON sample payloads, and HMAC-SHA256 signature verification code examples for Node.js, Python, and PHP.
+
 ## [0.5.3] - 2026-07-26
 - **Step-by-Step Integration Setup Guides**: Added interactive **"📖 How to get Authorization URL"** accordion guides for Slack, Discord, MS Teams, Telegram, and Custom Webhooks directly inside the authentication modal in `/dashboard/integrations`.
 
