@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, createAdminClient } from '@/lib/supabase';
 import { signJWT } from '@/lib/jwt';
 import { checkRateLimit } from '@/lib/rate-limit';
 
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Authenticate with Supabase Auth
+    // 1. Authenticate credentials with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: password,
@@ -34,8 +34,11 @@ export async function POST(req: NextRequest) {
     const userId = authData.user.id;
     const userEmail = (authData.user.email || cleanEmail).trim().toLowerCase();
 
+    // Create fresh isolated admin client for DB queries to prevent RLS token mutation
+    const db = createAdminClient();
+
     // 2. Step A: Check management.tbl_users (Internal Zorvik Tech Team & Staff)
-    const { data: userMatches, error: userErr } = await supabase
+    const { data: userMatches, error: userErr } = await db
       .schema('management')
       .from('tbl_users')
       .select('tu_id, tu_auth_user_id, tu_role, tu_permissions, tu_status_flag, tu_deleted_flag, tu_email')
@@ -50,7 +53,7 @@ export async function POST(req: NextRequest) {
     if (dbUser) {
       // Self-heal: backfill tu_auth_user_id if null or mismatched
       if (!dbUser.tu_auth_user_id || dbUser.tu_auth_user_id !== userId) {
-        await supabase
+        await db
           .schema('management')
           .from('tbl_users')
           .update({ tu_auth_user_id: userId, tu_updated_at: new Date().toISOString() })
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Step B: Check management.tbl_clients (Super Admin & Tenant Clients)
-    const { data: clientMatches, error: clientErr } = await supabase
+    const { data: clientMatches, error: clientErr } = await db
       .schema('management')
       .from('tbl_clients')
       .select('tc_id, tc_client_name, tc_auth_user_id, tc_role, tc_status_flag, tc_deleted_flag, tc_contact_email')
@@ -100,7 +103,7 @@ export async function POST(req: NextRequest) {
     if (client) {
       // Self-heal: backfill tc_auth_user_id if null or mismatched
       if (!client.tc_auth_user_id || client.tc_auth_user_id !== userId) {
-        await supabase
+        await db
           .schema('management')
           .from('tbl_clients')
           .update({ tc_auth_user_id: userId, tc_updated_at: new Date().toISOString() })
@@ -131,7 +134,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Regular Client: Fetch active chat project
-      const { data: projects, error: projErr } = await supabase
+      const { data: projects, error: projErr } = await db
         .schema('management')
         .from('tbl_chat_projects')
         .select('tp_id, tp_api_key, tp_status_flag, tp_deleted_flag')
@@ -170,7 +173,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Step C: Fallback check for user in tbl_users assigned to any active project directly
     if (dbUser) {
-      const { data: allProjects } = await supabase
+      const { data: allProjects } = await db
         .schema('management')
         .from('tbl_chat_projects')
         .select('tp_id, tp_api_key, tp_status_flag, tp_deleted_flag, tp_created_at')

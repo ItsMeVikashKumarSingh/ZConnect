@@ -1,5 +1,9 @@
 # VERSION HISTORY
 
+## [0.4.5] - 2026-07-26
+- **RLS State Mutation Isolation**: Fixed critical auth bug where `supabase.auth.signInWithPassword` mutated the singleton client's `Authorization: Bearer` header to the user's JWT token, causing subsequent queries on `management.tbl_clients` to be blocked by RLS policies.
+- **Dedicated Admin Client**: Added `createAdminClient()` in `src/lib/supabase.ts` and refactored `/api/auth/login` to perform all profile & project lookups using an isolated admin client context.
+
 ## [0.4.4] - 2026-07-26
 - **OR-Matched Profile Querying**: Refactored `/api/auth/login` to query `tbl_users` and `tbl_clients` using single-pass PostgREST `.or(...)` queries (`tu_auth_user_id.eq / tu_email.ilike` and `tc_auth_user_id.eq / tc_contact_email.ilike`) with in-memory active record filtering (`.find(row => !row.deleted_flag)`).
 - **Environment & DB Cleanliness**: Removed all temporary diagnostic test scripts and enforced strict Rule 2.3 secret compliance in `src/lib/supabase.ts`.
