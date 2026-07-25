@@ -1,5 +1,9 @@
 # VERSION HISTORY
 
+## [0.4.2] - 2026-07-26
+- **Enhanced Operator Project Resolution**: Added secondary fallback check in `/api/auth/login` for non-admin users in `tbl_users` to resolve active projects in `tbl_chat_projects`.
+- **Diagnostic Logging**: Added structured server error logging for authentication fallthroughs (`[Login Auth Profile Resolution Failed]`).
+
 ## [0.4.1] - 2026-07-25
 - **Multi-Role Profile Login Resolution**: Updated `/api/auth/login` to query both `tbl_users` (internal staff & admins) and `tbl_clients` (Super Admin & client accounts) using dual UUID (`tu_auth_user_id` / `tc_auth_user_id`) and Email (`tu_email` / `tc_contact_email`) matching.
 - **Self-Healing Auth Backfill**: Automatically backfills missing `tu_auth_user_id` or `tc_auth_user_id` on successful authentication so subsequent logins hit primary indexes directly.

@@ -5,7 +5,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
-    const rateLimit = checkRateLimit(req, 20, 60000);
+    const rateLimit = checkRateLimit(req, 30, 60000);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: 'Too many login attempts. Please try again in a minute.' },
@@ -27,11 +27,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (authError || !authData.user) {
+      console.warn('[Login Auth Error]:', authError?.message || 'No user data');
       return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
     }
 
     const userId = authData.user.id;
-    const userEmail = authData.user.email || cleanEmail;
+    const userEmail = (authData.user.email || cleanEmail).trim().toLowerCase();
 
     // 2. Step A: Check tbl_users (Internal Zorvik Tech Team & Staff)
     let { data: dbUser } = await supabase
@@ -42,7 +43,6 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!dbUser) {
-      // Email fallback lookup
       const { data: userByEmail } = await supabase
         .from('tbl_users')
         .select('tu_id, tu_auth_user_id, tu_role, tu_permissions, tu_status_flag, tu_deleted_flag')
@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
 
       if (userByEmail) {
         dbUser = userByEmail;
-        // Self-heal: backfill tu_auth_user_id if null or mismatched
         if (!userByEmail.tu_auth_user_id || userByEmail.tu_auth_user_id !== userId) {
           await supabase
             .from('tbl_users')
@@ -78,7 +77,7 @@ export async function POST(req: NextRequest) {
         const token = signJWT(
           { userId, email: userEmail, role: 'admin' },
           process.env.JWT_SECRET || 'fallback-secret-key-12345',
-          7200 // 2 hours
+          7200
         );
 
         return NextResponse.json({
@@ -99,7 +98,6 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!client) {
-      // Email fallback lookup
       const { data: clientByEmail } = await supabase
         .from('tbl_clients')
         .select('tc_id, tc_client_name, tc_auth_user_id, tc_role, tc_status_flag, tc_deleted_flag')
@@ -109,7 +107,6 @@ export async function POST(req: NextRequest) {
 
       if (clientByEmail) {
         client = clientByEmail;
-        // Self-heal: backfill tc_auth_user_id if null or mismatched
         if (!clientByEmail.tc_auth_user_id || clientByEmail.tc_auth_user_id !== userId) {
           await supabase
             .from('tbl_clients')
@@ -177,10 +174,38 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. Fallthrough
+    // 4. Step C: Fallback check for user in tbl_users assigned to any active project directly
+    if (dbUser) {
+      const { data: userProject } = await supabase
+        .from('tbl_chat_projects')
+        .select('tp_id, tp_api_key')
+        .eq('tp_status_flag', true)
+        .eq('tp_deleted_flag', false)
+        .order('tp_created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (userProject) {
+        const token = signJWT(
+          { userId, email: userEmail, role: 'client', projectId: userProject.tp_id },
+          userProject.tp_api_key,
+          14400
+        );
+
+        return NextResponse.json({
+          success: true,
+          token,
+          role: 'client',
+          redirectTo: '/dashboard',
+        });
+      }
+    }
+
+    // 5. Fallthrough Log & Response
+    console.error('[Login Auth Profile Resolution Failed]:', { userId, userEmail, dbUserFound: !!dbUser, clientFound: !!client });
     return NextResponse.json({ success: false, error: 'Access denied: Profile not found.' }, { status: 403 });
   } catch (error) {
-    console.error('[Login API Error]:', error);
+    console.error('[Login API Internal Error]:', error);
     return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
   }
 }
