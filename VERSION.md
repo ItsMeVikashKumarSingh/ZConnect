@@ -1,5 +1,8 @@
 # VERSION HISTORY
 
+## [0.5.3] - 2026-07-26
+- **Step-by-Step Integration Setup Guides**: Added interactive **"📖 How to get Authorization URL"** accordion guides for Slack, Discord, MS Teams, Telegram, and Custom Webhooks directly inside the authentication modal in `/dashboard/integrations`.
+
 ## [0.5.2] - 2026-07-26
 - **Platform 1-Click Authentication**: Added direct **"Authenticate with Slack"**, **"Authenticate with Discord"**, **"Authenticate with MS Teams"**, **"Authenticate with Telegram"**, and **"Authenticate Webhook"** primary connection buttons in `/dashboard/integrations`.
 - **Auto-Auth Removal**: Completely removed unused auto-auth & site embed generator files.

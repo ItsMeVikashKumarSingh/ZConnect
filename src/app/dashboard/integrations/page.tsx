@@ -19,7 +19,11 @@ import {
   CheckCircle,
   AlertTriangle,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import { ZConnectLogo } from '../../../components/ZConnectLogo';
@@ -87,6 +91,7 @@ function IntegrationsContent() {
 
   const [showFormModal, setShowFormModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
 
   const platformSpecs = [
     {
@@ -98,6 +103,14 @@ function IntegrationsContent() {
       borderClass: 'border-[#4A154B]/40 hover:border-[#4A154B]',
       icon: SlackIcon,
       placeholderUrl: 'https://hooks.slack.com/services/T000/B000/XXXX',
+      officialUrl: 'https://api.slack.com/apps',
+      guideSteps: [
+        'Open https://api.slack.com/apps in a new browser tab and click "Create New App" -> "From scratch".',
+        'Name your app (e.g. "ZConnect Support Bot") and select your Slack workspace.',
+        'Click "Incoming Webhooks" in the left sidebar and toggle the switch to ON.',
+        'Click "Add New Webhook to Workspace" at the bottom, pick your target channel, and click "Allow".',
+        'Copy the generated Webhook URL (starts with https://hooks.slack.com/services/...) and paste it below.'
+      ]
     },
     {
       id: 'discord',
@@ -108,6 +121,14 @@ function IntegrationsContent() {
       borderClass: 'border-[#5865F2]/40 hover:border-[#5865F2]',
       icon: DiscordIcon,
       placeholderUrl: 'https://discord.com/api/webhooks/123456/abcdef...',
+      officialUrl: 'https://support.discord.com/hc/en-us/articles/228383668',
+      guideSteps: [
+        'Open Discord and go to your Server Settings -> Integrations -> Webhooks.',
+        'Click "New Webhook" (or select an existing one).',
+        'Set your bot name (e.g. "ZConnect Alerts") and select the target text channel.',
+        'Click "Copy Webhook URL".',
+        'Paste the copied URL (starts with https://discord.com/api/webhooks/...) into the field below.'
+      ]
     },
     {
       id: 'teams',
@@ -118,6 +139,14 @@ function IntegrationsContent() {
       borderClass: 'border-[#6264A7]/40 hover:border-[#6264A7]',
       icon: Layers,
       placeholderUrl: 'https://outlook.office.com/webhook/...',
+      officialUrl: 'https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook',
+      guideSteps: [
+        'Open Microsoft Teams and navigate to your team channel.',
+        'Click the "..." (More options) menu next to the channel name -> select "Connectors" or "Workflows".',
+        'Search for "Incoming Webhook" and click "Add" / "Configure".',
+        'Enter a name (e.g. "ZConnect Notifications") and click "Create".',
+        'Copy the generated Webhook URL (starts with https://outlook.office.com/...) and paste it below.'
+      ]
     },
     {
       id: 'telegram',
@@ -128,6 +157,14 @@ function IntegrationsContent() {
       borderClass: 'border-[#229ED9]/40 hover:border-[#229ED9]',
       icon: Send,
       placeholderUrl: 'https://api.telegram.org/bot123456:ABC.../sendMessage?chat_id=-100...',
+      officialUrl: 'https://core.telegram.org/bots#how-do-i-create-a-bot',
+      guideSteps: [
+        'Open Telegram and search for @BotFather.',
+        'Send /newbot, follow the prompts, and copy your HTTP API Token (e.g. 123456789:ABCdef...).',
+        'Add your new bot to your Telegram group or channel as an Administrator.',
+        'Obtain your Chat ID (e.g. send a message in the group and visit https://api.telegram.org/bot<TOKEN>/getUpdates).',
+        'Enter URL format: https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID> and paste it below.'
+      ]
     },
     {
       id: 'custom_webhook',
@@ -138,6 +175,13 @@ function IntegrationsContent() {
       borderClass: 'border-primary-accent/40 hover:border-primary-accent',
       icon: Globe,
       placeholderUrl: 'https://yourdomain.com/api/webhooks/zconnect',
+      officialUrl: 'https://zconnect.zorviktech.com/docs/webhooks',
+      guideSteps: [
+        'Deploy an HTTPS POST endpoint on your server (e.g. https://api.yourdomain.com/zconnect-webhook).',
+        'Ensure your server accepts JSON POST bodies with event types: chat_started, message_received, ticket_resolved.',
+        'Validate the X-ZConnect-Signature header using HMAC-SHA256 with your project API Key for security.',
+        'Paste your server endpoint URL below and click Authenticate.'
+      ]
     },
   ] as const;
 
@@ -203,7 +247,6 @@ function IntegrationsContent() {
 
   // 3. Open OAuth / Authentication Modal
   const openAuthenticateModal = (platform: Integration['ti_platform']) => {
-    const spec = platformSpecs.find((p) => p.id === platform);
     setForm({
       integrationId: '',
       platform,
@@ -213,6 +256,7 @@ function IntegrationsContent() {
       events: ['chat_started', 'message_received', 'ticket_resolved'],
     });
     setIsEditing(false);
+    setShowGuide(true);
     setShowFormModal(true);
   };
 
@@ -226,6 +270,7 @@ function IntegrationsContent() {
       events: integration.ti_config.events || ['chat_started', 'message_received', 'ticket_resolved'],
     });
     setIsEditing(true);
+    setShowGuide(false);
     setShowFormModal(true);
   };
 
@@ -567,10 +612,10 @@ function IntegrationsContent() {
         </section>
       </main>
 
-      {/* Authenticate & Connect Modal */}
+      {/* Authenticate & Connect Modal with Interactive Step-by-Step Setup Guide */}
       {showFormModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-card border border-border max-w-md w-full rounded-2xl overflow-hidden shadow-2xl animate-in scale-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-card border border-border max-w-lg w-full rounded-2xl overflow-hidden shadow-2xl animate-in scale-in duration-150 my-8">
             <div className="px-6 py-4 bg-muted/50 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4.5 w-4.5 text-primary-accent" />
@@ -586,76 +631,121 @@ function IntegrationsContent() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="block font-bold text-muted-foreground uppercase tracking-wider text-[9px]">
-                  {selectedSpec?.name} Authorization / Webhook URL
-                </label>
-                <input
-                  type="url"
-                  placeholder={selectedSpec?.placeholderUrl || 'https://...'}
-                  value={form.webhookUrl}
-                  onChange={(e) => setForm({ ...form, webhookUrl: e.target.value })}
-                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground focus:outline-none focus:border-primary-accent/50 font-mono text-[10px]"
-                  required
-                />
-              </div>
+            <div className="p-6 space-y-5 text-xs">
+              {/* Step-by-Step Interactive Guide Accordion */}
+              {selectedSpec?.guideSteps && (
+                <div className="border border-primary-accent/20 bg-primary-accent/5 rounded-xl overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowGuide(!showGuide)}
+                    className="w-full px-4 py-3 flex items-center justify-between text-left font-bold text-xs text-primary-accent hover:bg-primary-accent/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      <span>How to get {selectedSpec.name} Authorization URL</span>
+                    </div>
+                    {showGuide ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
 
-              {(form.platform === 'slack' || form.platform === 'discord' || form.platform === 'teams') && (
-                <div className="space-y-1">
-                  <label className="block font-bold text-muted-foreground uppercase tracking-wider text-[9px]">
-                    Channel / Room Name (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="#support-notifications"
-                    value={form.channelName}
-                    onChange={(e) => setForm({ ...form, channelName: e.target.value })}
-                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-primary-accent/50"
-                  />
+                  {showGuide && (
+                    <div className="px-4 pb-4 pt-1 space-y-2 border-t border-primary-accent/15 text-[11px] text-muted-foreground leading-relaxed">
+                      {selectedSpec.guideSteps.map((step, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <span className="h-4 w-4 rounded-full bg-primary-accent/20 text-primary-accent font-bold text-[9px] flex items-center justify-center shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <span className="flex-1">{step}</span>
+                        </div>
+                      ))}
+
+                      {selectedSpec.officialUrl && (
+                        <div className="pt-2">
+                          <a
+                            href={selectedSpec.officialUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-primary-accent hover:underline"
+                          >
+                            Official {selectedSpec.name} Documentation <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="space-y-2 pt-2">
-                <label className="block font-bold text-muted-foreground uppercase tracking-wider text-[9px]">
-                  Trigger Automated Alerts On Events
-                </label>
-                <div className="space-y-2">
-                  {[
-                    { id: 'chat_started', label: 'Ticket / Conversation Created' },
-                    { id: 'message_received', label: 'Customer Message Sent' },
-                    { id: 'ticket_resolved', label: 'Ticket Status Marked Resolved' },
-                  ].map((evt) => (
-                    <label key={evt.id} className="flex items-center gap-2.5 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.events.includes(evt.id)}
-                        onChange={() => handleToggleEvent(evt.id)}
-                        className="rounded border-border text-primary-accent bg-background focus:ring-primary-accent/50"
-                      />
-                      <span className="text-foreground">{evt.label}</span>
-                    </label>
-                  ))}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="block font-bold text-muted-foreground uppercase tracking-wider text-[9px]">
+                    {selectedSpec?.name} Authorization / Webhook URL
+                  </label>
+                  <input
+                    type="url"
+                    placeholder={selectedSpec?.placeholderUrl || 'https://...'}
+                    value={form.webhookUrl}
+                    onChange={(e) => setForm({ ...form, webhookUrl: e.target.value })}
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground focus:outline-none focus:border-primary-accent/50 font-mono text-[10px]"
+                    required
+                  />
                 </div>
-              </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setShowFormModal(false)}
-                  className="px-4 py-2 border border-border hover:bg-muted rounded-xl text-muted-foreground font-bold transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className={`px-5 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${selectedSpec?.colorClass}`}
-                >
-                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : `Authenticate ${selectedSpec?.name}`}
-                </button>
-              </div>
-            </form>
+                {(form.platform === 'slack' || form.platform === 'discord' || form.platform === 'teams') && (
+                  <div className="space-y-1">
+                    <label className="block font-bold text-muted-foreground uppercase tracking-wider text-[9px]">
+                      Channel / Room Name (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="#support-notifications"
+                      value={form.channelName}
+                      onChange={(e) => setForm({ ...form, channelName: e.target.value })}
+                      className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-foreground focus:outline-none focus:border-primary-accent/50"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2 pt-2">
+                  <label className="block font-bold text-muted-foreground uppercase tracking-wider text-[9px]">
+                    Trigger Automated Alerts On Events
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      { id: 'chat_started', label: 'Ticket / Conversation Created' },
+                      { id: 'message_received', label: 'Customer Message Sent' },
+                      { id: 'ticket_resolved', label: 'Ticket Status Marked Resolved' },
+                    ].map((evt) => (
+                      <label key={evt.id} className="flex items-center gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.events.includes(evt.id)}
+                          onChange={() => handleToggleEvent(evt.id)}
+                          className="rounded border-border text-primary-accent bg-background focus:ring-primary-accent/50"
+                        />
+                        <span className="text-foreground">{evt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setShowFormModal(false)}
+                    className="px-4 py-2 border border-border hover:bg-muted rounded-xl text-muted-foreground font-bold transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className={`px-5 py-2 font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${selectedSpec?.colorClass}`}
+                  >
+                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : `Authenticate ${selectedSpec?.name}`}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
