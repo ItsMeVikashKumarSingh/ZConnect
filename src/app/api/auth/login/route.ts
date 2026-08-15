@@ -34,12 +34,18 @@ export async function POST(req: NextRequest) {
     const userId = authData.user.id;
     const userEmail = (authData.user.email || cleanEmail).trim().toLowerCase();
 
-    // Create fresh isolated admin client for DB queries to prevent RLS token mutation
-    const db = createAdminClient();
+    // Create fresh isolated admin clients for DB queries
+    const mgmtDb = createAdminClient('management');
+    const zconnectDb = createAdminClient('zconnect');
+
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('FATAL: JWT_SECRET environment variable is missing.');
+      return NextResponse.json({ success: false, error: 'Server configuration error' }, { status: 500 });
+    }
 
     // 2. Step A: Check management.tbl_users (Internal Zorvik Tech Team & Staff)
-    const { data: userMatches, error: userErr } = await db
-      .schema('management')
+    const { data: userMatches, error: userErr } = await mgmtDb
       .from('tbl_users')
       .select('tu_id, tu_auth_user_id, tu_role, tu_permissions, tu_status_flag, tu_deleted_flag, tu_email')
       .or(`tu_auth_user_id.eq.${userId},tu_email.ilike.${userEmail}`);
@@ -53,8 +59,7 @@ export async function POST(req: NextRequest) {
     if (dbUser) {
       // Self-heal: backfill tu_auth_user_id if null or mismatched
       if (!dbUser.tu_auth_user_id || dbUser.tu_auth_user_id !== userId) {
-        await db
-          .schema('management')
+        await mgmtDb
           .from('tbl_users')
           .update({ tu_auth_user_id: userId, tu_updated_at: new Date().toISOString() })
           .eq('tu_id', dbUser.tu_id);
@@ -69,12 +74,12 @@ export async function POST(req: NextRequest) {
 
       const roleStr = (dbUser.tu_role || '').toLowerCase();
       const permissions: string[] = Array.isArray(dbUser.tu_permissions) ? dbUser.tu_permissions : [];
-      const isAdmin = roleStr === 'admin' || roleStr === 'superadmin' || permissions.includes('*') || permissions.includes('admin');
+      const isAdmin = roleStr === 'admin' || roleStr === 'superadmin' || permissions.includes('*') || permissions.includes('admin') || permissions.includes('zconnect');
 
       if (isAdmin) {
         const token = signJWT(
           { userId, email: userEmail, role: 'admin' },
-          process.env.JWT_SECRET || 'fallback-secret-key-12345',
+          jwtSecret,
           7200
         );
 
@@ -88,8 +93,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Step B: Check management.tbl_clients (Super Admin & Tenant Clients)
-    const { data: clientMatches, error: clientErr } = await db
-      .schema('management')
+    const { data: clientMatches, error: clientErr } = await mgmtDb
       .from('tbl_clients')
       .select('tc_id, tc_client_name, tc_auth_user_id, tc_role, tc_status_flag, tc_deleted_flag, tc_contact_email')
       .or(`tc_auth_user_id.eq.${userId},tc_contact_email.ilike.${userEmail}`);
@@ -103,8 +107,7 @@ export async function POST(req: NextRequest) {
     if (client) {
       // Self-heal: backfill tc_auth_user_id if null or mismatched
       if (!client.tc_auth_user_id || client.tc_auth_user_id !== userId) {
-        await db
-          .schema('management')
+        await mgmtDb
           .from('tbl_clients')
           .update({ tc_auth_user_id: userId, tc_updated_at: new Date().toISOString() })
           .eq('tc_id', client.tc_id);
@@ -121,7 +124,7 @@ export async function POST(req: NextRequest) {
       if (clientRole === 'superadmin' || clientRole === 'admin') {
         const token = signJWT(
           { userId, email: userEmail, role: 'admin' },
-          process.env.JWT_SECRET || 'fallback-secret-key-12345',
+          jwtSecret,
           7200
         );
 
@@ -133,15 +136,14 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Regular Client: Fetch active chat project
-      const { data: projects, error: projErr } = await db
-        .schema('management')
-        .from('tbl_chat_projects')
+      // Regular Client: Fetch active chat project from zconnect.tbl_projects
+      const { data: projects, error: projErr } = await zconnectDb
+        .from('tbl_projects')
         .select('tp_id, tp_api_key, tp_status_flag, tp_deleted_flag')
         .eq('tp_client_id', client.tc_id);
 
       if (projErr) {
-        console.warn('[Login DB Error - tbl_chat_projects]:', projErr.message);
+        console.warn('[Login DB Error - zconnect.tbl_projects]:', projErr.message);
       }
 
       const project = (projects || []).find((p) => !p.tp_deleted_flag && p.tp_status_flag) || null;
@@ -173,9 +175,8 @@ export async function POST(req: NextRequest) {
 
     // 4. Step C: Fallback check for user in tbl_users assigned to any active project directly
     if (dbUser) {
-      const { data: allProjects } = await db
-        .schema('management')
-        .from('tbl_chat_projects')
+      const { data: allProjects } = await zconnectDb
+        .from('tbl_projects')
         .select('tp_id, tp_api_key, tp_status_flag, tp_deleted_flag, tp_created_at')
         .order('tp_created_at', { ascending: false });
 

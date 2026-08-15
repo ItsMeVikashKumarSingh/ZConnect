@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     // 1. Fetch project secret key tp_api_key to verify client token
     const { data: project, error: projectErr } = await supabase
-      .from('tbl_chat_projects')
+      .from('tbl_projects')
       .select('tp_api_key, tp_status_flag, tp_deleted_flag')
       .eq('tp_id', projectId)
       .single();
@@ -37,13 +37,13 @@ export async function GET(req: NextRequest) {
       start(controller) {
         controller.enqueue(encoder.encode(': ping\n\n'));
 
-        // Subscribe to database changes for this project
+        // Subscribe to database changes for this project in zconnect schema
         channel = supabase
           .channel(`dashboard-project:${projectId}`)
           .on('postgres_changes', {
             event: '*',
-            schema: 'management',
-            table: 'tbl_chat_conversations',
+            schema: 'zconnect',
+            table: 'tbl_conversations',
             filter: `tc_project_id=eq.${projectId}`
           }, async (payload) => {
             try {
@@ -56,14 +56,14 @@ export async function GET(req: NextRequest) {
           })
           .on('postgres_changes', {
             event: 'INSERT',
-            schema: 'management',
-            table: 'tbl_chat_messages'
+            schema: 'zconnect',
+            table: 'tbl_messages'
           }, async (payload) => {
             try {
               const msg = payload.new;
               // Verify message belongs to this project
               const { data: conv } = await supabase
-                .from('tbl_chat_conversations')
+                .from('tbl_conversations')
                 .select('tc_id')
                 .eq('tc_id', msg.tm_conversation_id)
                 .eq('tc_project_id', projectId)

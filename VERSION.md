@@ -1,5 +1,11 @@
 # VERSION HISTORY
 
+## [0.6.0] - 2026-08-16
+- **Isolated `zconnect` Database Schema**: Migrated all core chat data (`tbl_projects`, `tbl_faqs`, `tbl_conversations`, `tbl_messages`, `tbl_canned_responses`, `tbl_integrations`) to the dedicated `zconnect` database schema.
+- **Dedicated Audit Logging (`zconnect.tbl_audit_logs`)**: Segregated audit trails into a dedicated `tbl_audit_logs` table in `zconnect` schema, supporting standalone widgets without mandatory client linkage.
+- **Hardened JWT Authentication**: Removed fallback JWT secret strings across `/api/auth/login` and `/api/superadmin`, enforcing strict secret verification.
+- **Superadmin Audit Logging Integration**: Added automatic audit logging on project creation, widget configuration updates, and project deletions in `/api/superadmin`.
+
 ## [0.5.4] - 2026-07-26
 - **Public Webhooks Documentation Page**: Added dedicated `/docs/webhooks` page detailing event types (`chat_started`, `message_received`, `ticket_resolved`), JSON sample payloads, and HMAC-SHA256 signature verification code examples for Node.js, Python, and PHP.
 

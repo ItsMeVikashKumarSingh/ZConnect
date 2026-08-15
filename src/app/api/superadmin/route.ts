@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, createAdminClient } from '@/lib/supabase';
 import { verifyJWT } from '@/lib/jwt';
+import { writeAuditLog } from '@/lib/audit';
 
 // Helper to authenticate superadmin requests using headers
 async function authenticateAdmin(req: NextRequest): Promise<any | null> {
@@ -9,7 +10,13 @@ async function authenticateAdmin(req: NextRequest): Promise<any | null> {
     const token = authHeader?.split(' ')[1];
     if (!token) return null;
 
-    const decoded = verifyJWT(token, process.env.JWT_SECRET || 'fallback-secret-key-12345');
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      console.error('FATAL: JWT_SECRET environment variable is missing.');
+      return null;
+    }
+
+    const decoded = verifyJWT(token, jwtSecret);
     if (!decoded || decoded.role !== 'admin') return null;
 
     return decoded;
@@ -28,10 +35,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
 
-    // 1. Fetch all registered projects
+    // 1. Fetch all registered projects from zconnect.tbl_projects
     if (!action || action === 'projects') {
       const { data: projects, error } = await supabase
-        .from('tbl_chat_projects')
+        .from('tbl_projects')
         .select('*')
         .eq('tp_deleted_flag', false)
         .order('tp_created_at', { ascending: false });
@@ -42,7 +49,8 @@ export async function GET(req: NextRequest) {
 
     // 2. Fetch all clients from management.tbl_clients (to link to support projects)
     if (action === 'clients') {
-      const { data: clients, error } = await supabase
+      const mgmtDb = createAdminClient('management');
+      const { data: clients, error } = await mgmtDb
         .from('tbl_clients')
         .select('tc_id, tc_client_name, tc_contact_email, tc_domain, tc_status_flag')
         .eq('tc_deleted_flag', false)
@@ -79,7 +87,7 @@ export async function POST(req: NextRequest) {
       // Check if project already exists for this client
       if (clientUUID) {
         const { data: existing } = await supabase
-          .from('tbl_chat_projects')
+          .from('tbl_projects')
           .select('tp_id')
           .eq('tp_client_id', clientUUID)
           .eq('tp_deleted_flag', false)
@@ -91,7 +99,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { data: newProj, error } = await supabase
-        .from('tbl_chat_projects')
+        .from('tbl_projects')
         .insert({
           tp_name: name,
           tp_domain: domain,
@@ -101,6 +109,15 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (error) throw error;
+
+      await writeAuditLog({
+        projectId: newProj.tp_id,
+        adminId: session.userId,
+        action: 'PROJECT_CREATED',
+        entity: 'ZCONNECT_PROJECT',
+        metadata: { name, domain, clientUUID },
+      });
+
       return NextResponse.json({ success: true, project: newProj });
     }
 
@@ -112,7 +129,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { error } = await supabase
-        .from('tbl_chat_projects')
+        .from('tbl_projects')
         .update({
           tp_widget_config: widgetConfig,
           tp_updated_at: new Date().toISOString(),
@@ -120,6 +137,15 @@ export async function POST(req: NextRequest) {
         .eq('tp_id', projectId);
 
       if (error) throw error;
+
+      await writeAuditLog({
+        projectId,
+        adminId: session.userId,
+        action: 'WIDGET_CONFIG_UPDATED',
+        entity: 'ZCONNECT_CONFIG',
+        metadata: { widgetConfig },
+      });
+
       return NextResponse.json({ success: true });
     }
 
@@ -131,7 +157,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { error } = await supabase
-        .from('tbl_chat_projects')
+        .from('tbl_projects')
         .update({
           tp_deleted_flag: true,
           tp_updated_at: new Date().toISOString(),
@@ -139,6 +165,14 @@ export async function POST(req: NextRequest) {
         .eq('tp_id', projectId);
 
       if (error) throw error;
+
+      await writeAuditLog({
+        projectId,
+        adminId: session.userId,
+        action: 'PROJECT_DELETED',
+        entity: 'ZCONNECT_PROJECT',
+      });
+
       return NextResponse.json({ success: true });
     }
 

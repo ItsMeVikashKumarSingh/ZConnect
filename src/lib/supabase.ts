@@ -13,7 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     persistSession: false,
   },
   db: {
-    schema: 'management',
+    schema: 'zconnect',
   },
 });
 
@@ -21,14 +21,14 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
  * Creates an isolated admin client using Service Role Key.
  * Crucial for database queries following auth.signInWithPassword to prevent RLS token mutation.
  */
-export function createAdminClient() {
+export function createAdminClient(schema: 'zconnect' | 'management' = 'zconnect') {
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
     db: {
-      schema: 'management',
+      schema,
     },
   });
 }

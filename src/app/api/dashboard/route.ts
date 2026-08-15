@@ -26,7 +26,7 @@ async function authenticateClient(req: NextRequest, targetProjectId: string | nu
 
     // Retrieve project secret key
     const { data: project } = await supabase
-      .from('tbl_chat_projects')
+      .from('tbl_projects')
       .select('tp_api_key')
       .eq('tp_id', projectId)
       .single();
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     // 1. Get conversations
     if (action === 'conversations') {
       const { data: convs, error } = await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .select('*')
         .eq('tc_project_id', projectId)
         .eq('tc_deleted_flag', false)
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
       // Verify conversation belongs to the project
       const { data: conv } = await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .select('tc_id')
         .eq('tc_id', conversationId)
         .eq('tc_project_id', projectId)
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
       }
 
       const { data: messagesList, error } = await supabase
-        .from('tbl_chat_messages')
+        .from('tbl_messages')
         .select('*')
         .eq('tm_conversation_id', conversationId)
         .eq('tm_deleted_flag', false)
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
     // 3. Get FAQs
     if (action === 'faqs') {
       const { data: faqs, error } = await supabase
-        .from('tbl_chat_faqs')
+        .from('tbl_faqs')
         .select('*')
         .eq('tf_project_id', projectId)
         .eq('tf_deleted_flag', false)
@@ -138,7 +138,7 @@ export async function GET(req: NextRequest) {
     // 4. Get Canned Responses
     if (action === 'canned') {
       const { data: canned, error } = await supabase
-        .from('tbl_chat_canned_responses')
+        .from('tbl_canned_responses')
         .select('*')
         .eq('tcr_project_id', projectId)
         .eq('tcr_deleted_flag', false)
@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
 
       // Verify conversation ownership
       const { data: conv } = await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .select('tc_id')
         .eq('tc_id', conversationId)
         .eq('tc_project_id', projectId)
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
 
       // Insert message as role 'client'
       const { data: newMsg, error: msgError } = await supabase
-        .from('tbl_chat_messages')
+        .from('tbl_messages')
         .insert({
           tm_conversation_id: conversationId,
           tm_sender_id: senderId,
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
 
       // Update conversation timestamp and mark status open
       await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .update({
           tc_updated_at: new Date().toISOString(),
           tc_status: 'open',
@@ -269,7 +269,7 @@ export async function POST(req: NextRequest) {
 
       // Verify conversation ownership
       const { data: conv } = await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .select('tc_id')
         .eq('tc_id', conversationId)
         .eq('tc_project_id', projectId)
@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
       }
 
       const { error } = await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .update({
           tc_status: 'resolved',
           tc_updated_at: new Date().toISOString(),
@@ -303,12 +303,12 @@ export async function POST(req: NextRequest) {
       // Trigger integrations webhook asynchronously
       Promise.all([
         supabase
-          .from('tbl_chat_conversations')
+          .from('tbl_conversations')
           .select('tc_user_name, tc_user_email, tc_subject, tc_category')
           .eq('tc_id', conversationId)
           .single(),
         supabase
-          .from('tbl_chat_projects')
+          .from('tbl_projects')
           .select('tp_name')
           .eq('tp_id', projectId)
           .single()
@@ -351,7 +351,7 @@ export async function POST(req: NextRequest) {
       if (faqId) {
         // Verify FAQ belongs to project
         const { data: faq } = await supabase
-          .from('tbl_chat_faqs')
+          .from('tbl_faqs')
           .select('tf_id')
           .eq('tf_id', faqId)
           .eq('tf_project_id', projectId)
@@ -360,7 +360,7 @@ export async function POST(req: NextRequest) {
         if (!faq) return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
         const { error } = await supabase
-          .from('tbl_chat_faqs')
+          .from('tbl_faqs')
           .update(payload)
           .eq('tf_id', faqId);
         if (error) throw error;
@@ -377,7 +377,7 @@ export async function POST(req: NextRequest) {
         }).catch((e) => console.error('Audit log failed:', e));
       } else {
         const { error } = await supabase
-          .from('tbl_chat_faqs')
+          .from('tbl_faqs')
           .insert(payload);
         if (error) throw error;
 
@@ -405,7 +405,7 @@ export async function POST(req: NextRequest) {
 
       // Verify FAQ ownership
       const { data: faq } = await supabase
-          .from('tbl_chat_faqs')
+          .from('tbl_faqs')
           .select('tf_id')
           .eq('tf_id', faqId)
           .eq('tf_project_id', projectId)
@@ -414,7 +414,7 @@ export async function POST(req: NextRequest) {
       if (!faq) return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
       const { error } = await supabase
-        .from('tbl_chat_faqs')
+        .from('tbl_faqs')
         .update({
           tf_deleted_flag: true,
           tf_updated_at: new Date().toISOString(),
@@ -455,7 +455,7 @@ export async function POST(req: NextRequest) {
       if (cannedId) {
         // Verify canned response ownership
         const { data: canned } = await supabase
-          .from('tbl_chat_canned_responses')
+          .from('tbl_canned_responses')
           .select('tcr_id')
           .eq('tcr_id', cannedId)
           .eq('tcr_project_id', projectId)
@@ -464,7 +464,7 @@ export async function POST(req: NextRequest) {
         if (!canned) return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
         const { error } = await supabase
-          .from('tbl_chat_canned_responses')
+          .from('tbl_canned_responses')
           .update(payload)
           .eq('tcr_id', cannedId);
         if (error) throw error;
@@ -481,7 +481,7 @@ export async function POST(req: NextRequest) {
         }).catch((e) => console.error('Audit log failed:', e));
       } else {
         const { error } = await supabase
-          .from('tbl_chat_canned_responses')
+          .from('tbl_canned_responses')
           .insert(payload);
         if (error) throw error;
 
@@ -509,7 +509,7 @@ export async function POST(req: NextRequest) {
 
       // Verify canned response ownership
       const { data: canned } = await supabase
-          .from('tbl_chat_canned_responses')
+          .from('tbl_canned_responses')
           .select('tcr_id')
           .eq('tcr_id', cannedId)
           .eq('tcr_project_id', projectId)
@@ -518,7 +518,7 @@ export async function POST(req: NextRequest) {
       if (!canned) return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
 
       const { error } = await supabase
-        .from('tbl_chat_canned_responses')
+        .from('tbl_canned_responses')
         .update({
           tcr_deleted_flag: true,
           tcr_updated_at: new Date().toISOString(),

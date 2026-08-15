@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 
     // 1. Fetch project widget config and API Key
     const { data: project, error: projectError } = await supabase
-      .from('tbl_chat_projects')
+      .from('tbl_projects')
       .select('tp_widget_config, tp_api_key, tp_status_flag, tp_deleted_flag')
       .eq('tp_id', projectId)
       .single();
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Fetch FAQs for the project
     const { data: faqs, error: faqsError } = await supabase
-      .from('tbl_chat_faqs')
+      .from('tbl_faqs')
       .select('tf_id, tf_question, tf_answer, tf_category, tf_sort_order')
       .eq('tf_project_id', projectId)
       .eq('tf_status_flag', true)
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
       if (isVerified) {
         // Fetch all past conversations for this user in the project
         const { data: conversations } = await supabase
-          .from('tbl_chat_conversations')
+          .from('tbl_conversations')
           .select('tc_id, tc_subject, tc_category, tc_status, tc_is_priority, tc_metadata, tc_created_at, tc_updated_at')
           .eq('tc_project_id', projectId)
           .eq('tc_user_id', userId)
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
           activeConversation = userConversations[0];
           // Fetch message history for this conversation
           const { data: messageLogs } = await supabase
-            .from('tbl_chat_messages')
+            .from('tbl_messages')
             .select('tm_id, tm_sender_id, tm_sender_role, tm_message, tm_attachments, tm_created_at')
             .eq('tm_conversation_id', activeConversation.tc_id)
             .eq('tm_deleted_flag', false)
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     // Fetch project to retrieve API Key and Name
     const { data: project, error: projectError } = await supabase
-      .from('tbl_chat_projects')
+      .from('tbl_projects')
       .select('tp_name, tp_api_key, tp_status_flag, tp_deleted_flag')
       .eq('tp_id', projectId)
       .single();
@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
 
       // Create conversation
       const { data: newConv, error: convError } = await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .insert({
           tc_project_id: projectId,
           tc_user_id: userId,
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
 
       // Insert first message
       const { error: msgError } = await supabase
-        .from('tbl_chat_messages')
+        .from('tbl_messages')
         .insert({
           tm_conversation_id: newConv.tc_id,
           tm_sender_id: userId,
@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
 
       // Verify conversation ownership
       const { data: conv, error: convErr } = await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .select('tc_id')
         .eq('tc_id', conversationId)
         .eq('tc_project_id', projectId)
@@ -259,7 +259,7 @@ export async function POST(req: NextRequest) {
 
       // Insert message
       const { data: newMsg, error: msgError } = await supabase
-        .from('tbl_chat_messages')
+        .from('tbl_messages')
         .insert({
           tm_conversation_id: conversationId,
           tm_sender_id: userId,
@@ -274,7 +274,7 @@ export async function POST(req: NextRequest) {
 
       // Update conversation updated timestamp
       await supabase
-        .from('tbl_chat_conversations')
+        .from('tbl_conversations')
         .update({ tc_updated_at: new Date().toISOString() })
         .eq('tc_id', conversationId);
 
@@ -295,12 +295,12 @@ export async function POST(req: NextRequest) {
       // Fetch conversation info and project name to trigger message webhook asynchronously
       Promise.all([
         supabase
-          .from('tbl_chat_conversations')
+          .from('tbl_conversations')
           .select('tc_user_name, tc_user_email, tc_subject, tc_category')
           .eq('tc_id', conversationId)
           .single(),
         supabase
-          .from('tbl_chat_projects')
+          .from('tbl_projects')
           .select('tp_name')
           .eq('tp_id', projectId)
           .single()
