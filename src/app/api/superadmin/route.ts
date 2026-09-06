@@ -50,14 +50,40 @@ export async function GET(req: NextRequest) {
     // 2. Fetch all clients from management.tbl_clients (to link to support projects)
     if (action === 'clients') {
       const mgmtDb = createAdminClient('management');
-      const { data: clients, error } = await mgmtDb
-        .from('tbl_clients')
-        .select('tc_id, tc_client_name, tc_contact_email, tc_domain, tc_status_flag')
-        .eq('tc_deleted_flag', false)
-        .order('tc_client_name', { ascending: true });
+      const [{ data: clients, error: clientErr }, { data: projects, error: projErr }] = await Promise.all([
+        mgmtDb
+          .from('tbl_clients')
+          .select('tc_id, tc_client_name, tc_contact_email, tc_status')
+          .eq('tc_deleted_flag', false)
+          .order('tc_client_name', { ascending: true }),
+        mgmtDb
+          .from('tbl_client_projects')
+          .select('tcp_client_id, tcp_allowed_domains, tcp_is_primary')
+          .eq('tcp_deleted_flag', false)
+      ]);
 
-      if (error) throw error;
-      return NextResponse.json({ success: true, clients: clients || [] });
+      if (clientErr) throw clientErr;
+      if (projErr) throw projErr;
+
+      const domainMap = new Map<string, string>();
+      (projects || []).forEach((p: any) => {
+        const domains = Array.isArray(p.tcp_allowed_domains) ? p.tcp_allowed_domains : [];
+        if (domains.length > 0) {
+          if (p.tcp_is_primary || !domainMap.has(p.tcp_client_id)) {
+            domainMap.set(p.tcp_client_id, domains[0]);
+          }
+        }
+      });
+
+      const formattedClients = (clients || []).map((c: any) => ({
+        tc_id: c.tc_id,
+        tc_client_name: c.tc_client_name,
+        tc_contact_email: c.tc_contact_email,
+        tc_domain: domainMap.get(c.tc_id) || '',
+        tc_status: c.tc_status,
+      }));
+
+      return NextResponse.json({ success: true, clients: formattedClients });
     }
 
     return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });

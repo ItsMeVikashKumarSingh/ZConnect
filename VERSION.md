@@ -1,5 +1,8 @@
 # VERSION HISTORY
 
+## [0.6.1] - 2026-09-06
+- **Multi-Project Client Domain Resolution (`/api/superadmin`)**: Updated the superadmin client listing action to derive client domains dynamically from `management.tbl_client_projects` instead of the legacy `tc_domain` column on `management.tbl_clients`.
+
 ## [0.6.0] - 2026-08-16
 - **Isolated `zconnect` Database Schema**: Migrated all core chat data (`tbl_projects`, `tbl_faqs`, `tbl_conversations`, `tbl_messages`, `tbl_canned_responses`, `tbl_integrations`) to the dedicated `zconnect` database schema.
 - **Dedicated Audit Logging (`zconnect.tbl_audit_logs`)**: Segregated audit trails into a dedicated `tbl_audit_logs` table in `zconnect` schema, supporting standalone widgets without mandatory client linkage.
