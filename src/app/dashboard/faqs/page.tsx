@@ -6,6 +6,8 @@ import { BookOpen, Plus, Trash2, Edit2, ArrowLeft, Loader2, LogOut, RefreshCw, C
 import Link from 'next/link';
 import { ZConnectLogo } from '../../../components/ZConnectLogo';
 import { useTheme } from '../../ThemeProvider';
+import { useConfirm } from '@/components/ui/ConfirmModal';
+import { useToast } from '@/components/ui/Toast';
 
 interface FAQ {
   tf_id: string;
@@ -19,6 +21,8 @@ function FaqsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme } = useTheme();
+  const confirm = useConfirm();
+  const toast = useToast();
   
   const [token, setToken] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -137,7 +141,15 @@ function FaqsContent() {
 
   // 4. Delete FAQ
   const handleDelete = async (faqId: string) => {
-    if (!token || !projectId || !confirm('Are you sure you want to delete this FAQ?')) return;
+    if (!token || !projectId) return;
+
+    const ok = await confirm({
+      title: 'Delete FAQ?',
+      message: 'Are you sure you want to delete this FAQ entry? This action cannot be undone.',
+      confirmText: 'Delete FAQ',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch('/api/dashboard', {
@@ -154,10 +166,14 @@ function FaqsContent() {
       });
       const data = await res.json();
       if (data.success) {
+        toast.success('FAQ deleted successfully');
         fetchFaqs();
+      } else {
+        toast.error(data.error || 'Failed to delete FAQ');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Failed to delete FAQ');
     }
   };
 

@@ -1,5 +1,10 @@
 # VERSION HISTORY
 
+## [0.6.2] - 2026-09-26
+- **Cyber-Elegant ConfirmModal & Toast Standard (`src/components/ui/ConfirmModal.tsx`, `src/components/ui/Toast.tsx`)**: Created modular, Framer Motion-powered `ConfirmProvider` and `ToastProvider` adhering strictly to Zorvik Cyber-Elegant design governance (`#090914`, subtle border glows, Lucide icons).
+- **Elimination of Browser Native Dialogs (`faqs/page.tsx`, `integrations/page.tsx`, `superadmin/page.tsx`, `widget/page.tsx`)**: Replaced all raw `confirm()` and `alert()` calls across the entire platform with asynchronous `useConfirm()` dialogs and responsive `useToast()` feedback.
+- **Reusable CustomSelect Component (`src/components/ui/CustomSelect.tsx`)**: Built a reusable cyber-glassmorphism select dropdown with animated state transitions, optional search filters, and Lucide icons.
+
 ## [0.6.1] - 2026-09-06
 - **Multi-Project Client Domain Resolution (`/api/superadmin`)**: Updated the superadmin client listing action to derive client domains dynamically from `management.tbl_client_projects` instead of the legacy `tc_domain` column on `management.tbl_clients`.
 

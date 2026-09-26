@@ -22,6 +22,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { ZConnectLogo } from '../../components/ZConnectLogo';
+import { useToast } from '@/components/ui/Toast';
 
 interface FAQ {
   tf_id: string;
@@ -51,6 +52,7 @@ function WidgetContent() {
   const querySignature = searchParams.get('signature');
   const priority = searchParams.get('priority') === 'true';
   const inline = searchParams.get('inline') === 'true';
+  const toast = useToast();
 
   // Resolved identity credentials
   const [identity, setIdentity] = useState<{
@@ -407,7 +409,7 @@ function WidgetContent() {
       setAttachments(prev => [...prev, newAttachment]);
     } catch (err) {
       console.error('File upload error:', err);
-      alert('Failed to upload file. Please try again.');
+      toast.error('Failed to upload file. Please try again.');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

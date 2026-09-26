@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Eye, Loader2, Save, Trash2, Copy, Check, LogOut, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
 import { ZConnectLogo } from '../../components/ZConnectLogo';
 import { useTheme } from '../ThemeProvider';
+import { useConfirm } from '@/components/ui/ConfirmModal';
+import { useToast } from '@/components/ui/Toast';
 
 interface Project {
   tp_id: string;
@@ -35,6 +37,8 @@ function SuperadminContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme } = useTheme();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [authChecking, setAuthChecking] = useState(true);
 
@@ -183,12 +187,14 @@ function SuperadminContent() {
       const data = await res.json();
       if (res.ok && data.success) {
         setNewProj({ name: '', domain: '', clientUUID: '' });
+        toast.success('Project registered successfully');
         fetchData();
       } else {
-        alert(data.error || 'Failed to register project');
+        toast.error(data.error || 'Failed to register project');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Failed to register project');
     }
   };
 
@@ -216,10 +222,13 @@ function SuperadminContent() {
             p.tp_id === selectedProj.tp_id ? { ...p, tp_widget_config: { ...p.tp_widget_config, ...config } } : p
           )
         );
-        alert('Configuration saved successfully!');
+        toast.success('Configuration saved successfully!');
+      } else {
+        toast.error(data.error || 'Failed to save configuration');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Failed to save configuration');
     } finally {
       setSaving(false);
     }
@@ -227,7 +236,14 @@ function SuperadminContent() {
 
   // Delete Project
   const handleDeleteProject = async (projectId: string) => {
-    if (!token || !confirm('Are you sure you want to delete this project? All associated chats will be archived.')) return;
+    if (!token) return;
+    const ok = await confirm({
+      title: 'Delete Chat Project?',
+      message: 'Are you sure you want to delete this project? The widget will stop functioning and all associated chats will be archived.',
+      confirmText: 'Delete Project',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch('/api/superadmin', {
@@ -243,11 +259,15 @@ function SuperadminContent() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        toast.success('Project deleted successfully');
         if (selectedProj?.tp_id === projectId) setSelectedProj(null);
         fetchData();
+      } else {
+        toast.error(data.error || 'Failed to delete project');
       }
     } catch (err) {
       console.error(err);
+      toast.error('Failed to delete project');
     }
   };
 

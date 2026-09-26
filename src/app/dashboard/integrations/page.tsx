@@ -28,6 +28,8 @@ import {
 import Link from 'next/link';
 import { ZConnectLogo } from '../../../components/ZConnectLogo';
 import { useTheme } from '../../ThemeProvider';
+import { useConfirm } from '@/components/ui/ConfirmModal';
+import { useToast } from '@/components/ui/Toast';
 
 // Custom Brand Icons
 const SlackIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -66,6 +68,8 @@ function IntegrationsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme } = useTheme();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [token, setToken] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -320,7 +324,7 @@ function IntegrationsContent() {
     e.preventDefault();
     if (!token || !projectId) return;
     if (!form.webhookUrl.trim()) {
-      alert('Webhook / Authorization URL is required.');
+      toast.error('Webhook / Authorization URL is required.');
       return;
     }
 
@@ -344,13 +348,14 @@ function IntegrationsContent() {
       const data = await res.json();
       if (data.success) {
         setShowFormModal(false);
+        toast.success('Integration connected successfully');
         fetchIntegrations();
       } else {
-        alert(data.error || 'Failed to authorize integration');
+        toast.error(data.error || 'Failed to authorize integration');
       }
     } catch (err) {
       console.error(err);
-      alert('Failed to authorize integration');
+      toast.error('Failed to authorize integration');
     } finally {
       setSaving(false);
     }
@@ -358,7 +363,15 @@ function IntegrationsContent() {
 
   // 6. Delete Integration
   const handleDelete = async (integrationId: string) => {
-    if (!token || !projectId || !confirm('Are you sure you want to disconnect this integration?')) return;
+    if (!token || !projectId) return;
+
+    const ok = await confirm({
+      title: 'Disconnect Integration?',
+      message: 'Are you sure you want to disconnect this integration? Webhook events will no longer be forwarded.',
+      confirmText: 'Disconnect',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/integrations?integrationId=${integrationId}`, {
@@ -368,10 +381,14 @@ function IntegrationsContent() {
 
       const data = await res.json();
       if (data.success) {
+        toast.success('Integration disconnected');
         fetchIntegrations();
+      } else {
+        toast.error(data.error || 'Failed to disconnect integration');
       }
     } catch (err) {
       console.error('Delete integration failed:', err);
+      toast.error('Failed to disconnect integration');
     }
   };
 
